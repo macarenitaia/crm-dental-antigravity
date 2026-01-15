@@ -53,11 +53,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // 3. POST: Message Processing
     if (req.method === 'POST') {
+        const supabase = getSupabaseAdmin();
+
         try {
             const body = req.body;
-            const supabase = getSupabaseAdmin();
 
-            // Log incoming payload
+            // Log incoming payload FIRST
             await supabase.from('webhook_logs').insert({
                 method: 'POST_PAGES',
                 url: req.url,
@@ -69,29 +70,51 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             const value = changes?.value;
             const message = value?.messages?.[0];
 
+            // Skip status updates (only process actual messages)
+            if (value?.statuses) {
+                return res.status(200).send('STATUS_RECEIVED');
+            }
+
             if (message && message.type === 'text') {
                 const from = message.from;
                 const text = message.text.body;
 
-                // Process AI in background
-                processUserMessage(from, text).catch(async (err) => {
-                    console.error("Agent Error:", err);
-                    try {
-                        const supabaseAsync = getSupabaseAdmin();
-                        await supabaseAsync.from('webhook_logs').insert({
-                            method: 'POST_AGENT_ERROR_PAGES',
-                            error: err.message,
-                            body: { from, text }
-                        });
-                    } catch (logErr) {
-                        console.error('Failed to log agent error:', logErr);
-                    }
+                // Log that we're starting agent processing
+                await supabase.from('webhook_logs').insert({
+                    method: 'POST_AGENT_START',
+                    body: { from, text, timestamp: new Date().toISOString() }
                 });
+
+                try {
+                    // CRITICAL: Must await here! Vercel kills background processes
+                    const agentResponse = await processUserMessage(from, text);
+
+                    // Log successful response
+                    await supabase.from('webhook_logs').insert({
+                        method: 'POST_AGENT_SUCCESS',
+                        body: { from, text, response: agentResponse?.substring(0, 200) }
+                    });
+                } catch (agentErr: any) {
+                    console.error("Agent Error:", agentErr);
+                    await supabase.from('webhook_logs').insert({
+                        method: 'POST_AGENT_ERROR',
+                        error: agentErr.message,
+                        body: { from, text, stack: agentErr.stack?.substring(0, 500) }
+                    });
+                }
             }
 
             return res.status(200).send('EVENT_RECEIVED');
         } catch (error: any) {
             console.error('Webhook POST Error (Pages):', error);
+            // Log the error
+            try {
+                await supabase.from('webhook_logs').insert({
+                    method: 'POST_FATAL_ERROR',
+                    error: error.message,
+                    body: { stack: error.stack?.substring(0, 500) }
+                });
+            } catch (logErr) { /* silent */ }
             return res.status(500).json({ error: error.message });
         }
     }
