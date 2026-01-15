@@ -1,0 +1,68 @@
+--- RLS Policies for users table ---
+[
+  {
+    "policyname": "Super Admin Select All",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "qual": "is_super_admin()",
+    "with_check": null
+  },
+  {
+    "policyname": "Super Admin Insert All",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "is_super_admin()"
+  },
+  {
+    "policyname": "Super Admin Update All",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "UPDATE",
+    "qual": "is_super_admin()",
+    "with_check": null
+  },
+  {
+    "policyname": "Super Admin Delete All",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "DELETE",
+    "qual": "is_super_admin()",
+    "with_check": null
+  },
+  {
+    "policyname": "Users view self",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "qual": "(auth_user_id = auth.uid())",
+    "with_check": null
+  },
+  {
+    "policyname": "SuperAdmin view all users",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "qual": "((auth.jwt() ->> 'email'::text) = 'macarenita.ia@gmail.com'::text)",
+    "with_check": null
+  },
+  {
+    "policyname": "Service role users",
+    "permissive": "PERMISSIVE",
+    "roles": "{service_role}",
+    "cmd": "ALL",
+    "qual": "true",
+    "with_check": "true"
+  }
+]
+
+--- RLS Status for users table ---
+[
+  {
+    "relname": "users",
+    "relrowsecurity": true,
+    "relforcerowsecurity": false
+  }
+]

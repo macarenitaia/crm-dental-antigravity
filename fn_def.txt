@@ -1,0 +1,20 @@
+CREATE OR REPLACE FUNCTION public.is_super_admin()
+ RETURNS boolean
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+            BEGIN
+              -- Safe check: check if user exists in users table with super_admin role 
+              -- but use SECURITY DEFINER to bypass RLS of the table being queried.
+              -- Or better: just check the email from auth.jwt() for the primary superadmin
+              RETURN (
+                (auth.jwt() ->> 'email'::text) = 'macarenita.ia@gmail.com'
+                OR
+                EXISTS (
+                  SELECT 1 FROM users 
+                  WHERE auth_user_id = auth.uid() 
+                  AND role = 'super_admin'
+                )
+              );
+            END;
+            $function$
