@@ -57,8 +57,25 @@ export async function processUserMessage(userId: string, message: string, tenant
     // Use provided tenantId or default
     const effectiveTenantId = tenantId || DEFAULT_TENANT_ID;
 
+    // Helper for easier logging
+    const logStep = async (step: string, data?: any) => {
+        try {
+            await supabaseAdmin.from('webhook_logs').insert({
+                method: 'AGENT_STEP',
+                url: step,
+                body: data,
+                query_params: { userId, effectiveTenantId }
+            });
+        } catch (e) {
+            console.error('Log Step failed:', e);
+        }
+    };
+
+    await logStep('START', { message });
+
     try {
         // 1. Get/Create Client - ALWAYS assign to a tenant
+        await logStep('FETCHING_CLIENT');
         let { data: client, error: fetchError } = await supabaseAdmin
             .from('clients')
             .select('id, name, preferred_clinic_id, cliente_id')
@@ -144,6 +161,8 @@ export async function processUserMessage(userId: string, message: string, tenant
             { role: "user", content: message }
         ];
 
+        await logStep('CALLING_OPENAI', { messages_length: messages.length });
+
         // 3. Main Loop for Tool Calling
         let finalResponseText = "";
         let turns = 0;
@@ -211,7 +230,9 @@ export async function processUserMessage(userId: string, message: string, tenant
         // 4. Send Response via WhatsApp
         if (finalResponseText && client) {
             console.log(`🤖 AI Response: ${finalResponseText}`);
+            await logStep('SENDING_WHATSAPP', { text: finalResponseText });
             await sendWhatsAppMessage(userId, finalResponseText);
+            await logStep('WHATSAPP_SENT_OK');
             await supabaseAdmin.from('messages').insert({
                 client_id: client.id,
                 role: 'assistant',
