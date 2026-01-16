@@ -18,6 +18,26 @@ function toMadridDate(dateStr: string) {
     return new Date(`${cleanDate}${offset}`);
 }
 
+// Simple Spanish name-based gender inference
+function inferGender(name: string | undefined): 'male' | 'female' | null {
+    if (!name) return null;
+    const firstName = name.split(' ')[0]?.toLowerCase().trim();
+    if (!firstName) return null;
+
+    // Explicit common names (overrides ending rules)
+    const femaleNames = ['carmen', 'macarena', 'maria', 'lucia', 'sofia', 'elena', 'ana', 'paula', 'laura', 'marta', 'pilar', 'ines', 'isabel', 'rosa', 'dolores', 'beatriz', 'raquel', 'silvia', 'cristina', 'teresa', 'sara', 'irene', 'nuria', 'alba'];
+    const maleNames = ['luis', 'juan', 'carlos', 'jose', 'antonio', 'manuel', 'francisco', 'david', 'pedro', 'miguel', 'angel', 'pablo', 'sergio', 'jorge', 'alberto', 'rafael', 'javier', 'alejandro', 'fernando', 'adrian', 'marcos', 'lucas', 'diego', 'hugo'];
+
+    if (femaleNames.includes(firstName)) return 'female';
+    if (maleNames.includes(firstName)) return 'male';
+
+    // Common Spanish name endings
+    if (firstName.endsWith('a') && !firstName.endsWith('ia')) return 'female';
+    if (firstName.endsWith('o')) return 'male';
+
+    return null;
+}
+
 export async function checkCalendarAvailability(date: string, clinicId?: string, tenantId?: string) {
     console.log(`Checking availability for: ${date} (Clinic: ${clinicId || 'All'}, Tenant: ${tenantId || 'All'})`);
     const startHour = 9;
@@ -70,7 +90,7 @@ export async function checkCalendarAvailability(date: string, clinicId?: string,
     };
 }
 
-export async function bookAppointment(clientId: string, startTime: string, reason: string, clinicId?: string, tenantId?: string, fullName?: string, email?: string) {
+export async function bookAppointment(clientId: string, startTime: string, reason: string, clinicId?: string, tenantId?: string, fullName?: string, email?: string, phone?: string) {
     const start = toMadridDate(startTime);
     const end = new Date(start.getTime() + 30 * 60000); // +30 mins
 
@@ -101,6 +121,11 @@ export async function bookAppointment(clientId: string, startTime: string, reaso
     const updateData: any = { status: 'client' };
     if (fullName) updateData.name = fullName;
     if (email) updateData.email = email;
+    if (phone) updateData.phone = phone;
+
+    // Infer gender from name
+    const inferredGender = inferGender(fullName);
+    if (inferredGender) updateData.gender = inferredGender;
 
     await supabaseAdmin
         .from('clients')

@@ -190,7 +190,7 @@ export async function processUserMessage(userId: string, message: string, tenant
                     } else if (toolCall.function.name === 'book_appointment') {
                         if (!client) throw new Error("Client logic failure");
                         const finalClinicId = args.clinicId || (client as any).preferred_clinic_id;
-                        // Pass tenantId, fullName, and email to bookAppointment!
+                        // Pass tenantId, fullName, email, and phone (userId) to bookAppointment!
                         toolResult = await bookAppointment(
                             client.id,
                             args.start_time,
@@ -198,7 +198,8 @@ export async function processUserMessage(userId: string, message: string, tenant
                             finalClinicId,
                             clientTenantId,
                             args.full_name,
-                            args.email
+                            args.email,
+                            userId // WhatsApp ID is the phone number
                         );
 
                         if (toolResult.success) {
