@@ -49,7 +49,7 @@ Al confirmar una cita futura (>24h), di siempre: "Te mandaré un mensajito de re
 `;
 
 // Default tenant ID for demo (in production, this would come from a mapping table)
-const DEFAULT_TENANT_ID = 'dddd4444-4444-4444-4444-444444444444'; // Sevilla Dental for demo
+const DEFAULT_TENANT_ID = 'ffffffff-ffff-ffff-ffff-ffffffffffff'; // HQ Macarenita IA
 
 export async function processUserMessage(userId: string, message: string, tenantId?: string) {
     console.log(`🧠 AI Processing for ${userId} via OpenAI`);
