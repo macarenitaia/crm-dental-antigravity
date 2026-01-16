@@ -41,9 +41,17 @@ export const crmTools: ChatCompletionTool[] = [
                     clinicId: {
                         type: "string",
                         description: "The ID of the clinic. REQUIRED if the user specified a location."
+                    },
+                    full_name: {
+                        type: "string",
+                        description: "The client's full name (first and last name)."
+                    },
+                    email: {
+                        type: "string",
+                        description: "The client's email address."
                     }
                 },
-                required: ["start_time", "reason"]
+                required: ["start_time", "reason", "full_name", "email"]
             }
         }
     },

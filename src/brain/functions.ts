@@ -70,7 +70,7 @@ export async function checkCalendarAvailability(date: string, clinicId?: string,
     };
 }
 
-export async function bookAppointment(clientId: string, startTime: string, reason: string, clinicId?: string, tenantId?: string) {
+export async function bookAppointment(clientId: string, startTime: string, reason: string, clinicId?: string, tenantId?: string, fullName?: string, email?: string) {
     const start = toMadridDate(startTime);
     const end = new Date(start.getTime() + 30 * 60000); // +30 mins
 
@@ -97,10 +97,14 @@ export async function bookAppointment(clientId: string, startTime: string, reaso
         return { error: `Booking failed: ${error.message}` };
     }
 
-    // Promote to Client status
+    // Update Client Profile and promote to Client status
+    const updateData: any = { status: 'client' };
+    if (fullName) updateData.name = fullName;
+    if (email) updateData.email = email;
+
     await supabaseAdmin
         .from('clients')
-        .update({ status: 'client' })
+        .update(updateData)
         .eq('id', clientId);
 
     return { success: true, appointment: data };
