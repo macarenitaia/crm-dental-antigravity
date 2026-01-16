@@ -79,7 +79,9 @@ export async function POST(req: NextRequest) {
             const from = message.from;
             const text = message.text.body;
 
-            processUserMessage(from, text).catch(async (err) => {
+            try {
+                await processUserMessage(from, text);
+            } catch (err: any) {
                 console.error("Agent Error:", err);
                 try {
                     const supabaseAsync = getSupabaseAdmin();
@@ -91,7 +93,7 @@ export async function POST(req: NextRequest) {
                 } catch (logErr) {
                     console.error('Failed to log agent error:', logErr);
                 }
-            });
+            }
         }
 
         return new Response('EVENT_RECEIVED', { status: 200 });
