@@ -65,10 +65,7 @@ export default function Dashboard() {
       {/* HEADLINE & FILTER */}
       <div className="flex justify-between items-center mb-8">
         <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-            <span className="bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-md animate-pulse">DEBUG: ACTIVO</span>
-          </div>
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-500 mt-1">Resumen de actividad y rendimiento</p>
         </div>
         <select
