@@ -241,8 +241,9 @@ export async function processUserMessage(userId: string, message: string, tenant
             });
             return finalResponseText;
         }
-    } catch (error) {
-        console.error('Brain Error (OpenAI):', error);
+    } catch (error: any) {
+        console.error('Brain Error (OpenAI/Processing):', error);
+        await logStep('CRITICAL_ERROR', { error: error.message, stack: error.stack });
         return null;
     }
 }
