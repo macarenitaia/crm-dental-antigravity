@@ -58,8 +58,13 @@ export function TenantProvider({ children }: { children: ReactNode }) {
 
         const initAuth = async () => {
             try {
-                // 1. Initial check
-                const { data: { session } } = await supabase.auth.getSession();
+                // 1. Initial check with quick timeout
+                const sessionPromise = supabase.auth.getSession();
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Session check timeout')), 5000)
+                );
+
+                const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]) as any;
                 console.log('[TenantContext] initAuth session:', session?.user?.email);
                 if (mounted && session?.user) {
                     console.log('[TenantContext] initAuth: user found, fetching profile');
@@ -75,6 +80,14 @@ export function TenantProvider({ children }: { children: ReactNode }) {
         };
 
         initAuth();
+
+        // SAFETY NET: Force loading=false after 12 seconds no matter what
+        const safetyTimeout = setTimeout(() => {
+            if (mounted && loading) {
+                console.warn('[TenantContext] SAFETY NET: Force-ending loading state after 12s');
+                setLoadingState(false, 'Safety timeout');
+            }
+        }, 12000);
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             console.log(`[TenantContext] onAuthStateChange: ${event}`, session?.user?.email);
@@ -101,6 +114,8 @@ export function TenantProvider({ children }: { children: ReactNode }) {
         });
 
         return () => {
+            mounted = false;
+            clearTimeout(safetyTimeout);
             subscription.unsubscribe();
         };
     }, []);
