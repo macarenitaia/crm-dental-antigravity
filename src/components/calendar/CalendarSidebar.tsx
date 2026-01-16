@@ -7,49 +7,51 @@ interface MiniCalendarProps {
 }
 
 const MiniCalendar: React.FC<MiniCalendarProps> = ({ currentDate, onSelectDate }) => {
-    // Basic implementation for now, mirroring the sidebar visual
-    // Real implementation would duplicate some MonthView logic but smaller
-    // For brevity in this refactor, I'm just putting a placeholder or simplified version
-    // But since the original code had it, let's keep it simple or assume it was imported?
-    // Looking at original code, it imported MiniCalendar? No, it was inline or imported?
-    // Checked original: It seemed to use <MiniCalendar ... /> but I didn't see the definition in the file dump.
-    // Wait, step 21 showed: 
-    // <MiniCalendar ... />
-    // But where was it defined? 
-    // Ah, it might have been imported or defined lower down. 
-    // I will check the file imports again. 
-    // Step 21 imports: 
-    // import Link from 'next/link'; ... NO MiniCalendar import.
-    // It must have been defined in the same file but I missed it because of truncation?
-    // Or I missed it in the imports.
-    // Looking at Step 21 code again...
-    // Lines 495: <MiniCalendar ... />
-    // It wasn't imported. So it must be defined in the file.
-    // I only read the first 800 lines. It might be at the bottom.
+    const today = new Date();
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
 
-    // I will implement a simple one here.
+    // First day of the month (0 = Sunday, 1 = Monday, etc.)
+    const firstDay = new Date(year, month, 1).getDay();
+    // Number of days in the month
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    // Create empty slots for days before the 1st of the month
+    const blanks = Array.from({ length: firstDay }, (_, i) => <div key={`blank-${i}`} className="w-6 h-6"></div>);
+
+    // Create day cells
+    const days = Array.from({ length: daysInMonth }, (_, i) => {
+        const day = i + 1;
+        const isToday = day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
+        const isCurrentSelected = day === currentDate.getDate();
+
+        return (
+            <div
+                key={day}
+                onClick={() => {
+                    const d = new Date(year, month, day);
+                    onSelectDate(d, true);
+                }}
+                className={`w-6 h-6 flex items-center justify-center rounded-full cursor-pointer text-xs
+                    ${isToday ? 'bg-emerald-600 text-white font-bold' : ''}
+                    ${!isToday && isCurrentSelected ? 'ring-1 ring-emerald-600' : ''}
+                    hover:bg-emerald-50
+                `}
+            >
+                {day}
+            </div>
+        );
+    });
+
     return (
         <div className="p-4 bg-white rounded-lg border border-gray-100 mb-4">
             <div className="text-center font-bold text-gray-700 mb-2">
                 {currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
             </div>
-            {/* Simplified grid for now */}
             <div className="grid grid-cols-7 gap-1 text-center text-xs">
-                {['D', 'L', 'M', 'X', 'J', 'V', 'S'].map(d => <span key={d} className="text-gray-400">{d}</span>)}
-                {/* Just some days to mimic logic */}
-                {Array.from({ length: 30 }).map((_, i) => (
-                    <div
-                        key={i}
-                        onClick={() => {
-                            const d = new Date(currentDate);
-                            d.setDate(i + 1);
-                            onSelectDate(d, true);
-                        }}
-                        className={`w-6 h-6 flex items-center justify-center rounded-full cursor-pointer hover:bg-emerald-50 ${i + 1 === currentDate.getDate() ? 'bg-emerald-600 text-white' : ''}`}
-                    >
-                        {i + 1}
-                    </div>
-                ))}
+                {['D', 'L', 'M', 'X', 'J', 'V', 'S'].map(d => <span key={d} className="text-gray-400 font-medium">{d}</span>)}
+                {blanks}
+                {days}
             </div>
         </div>
     );
