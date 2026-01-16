@@ -23,11 +23,14 @@ export const ClientSummary: React.FC<ClientSummaryProps> = ({ client, lastAppoin
         <div className="bg-white rounded-3xl shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden h-fit sticky top-6">
             <div className="bg-gradient-to-b from-emerald-50/50 to-white pt-10 pb-6 px-6 flex flex-col items-center border-b border-gray-100">
                 <div className="relative mb-4 group">
-                    <div className="w-28 h-28 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 text-3xl font-bold border-4 border-white shadow-lg overflow-hidden relative">
+                    <div
+                        className="w-28 h-28 rounded-full flex items-center justify-center text-white text-3xl font-bold border-4 border-white shadow-lg overflow-hidden relative"
+                        style={!client.image_url ? { backgroundColor: `hsl(${(client.name || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 360}, 65%, 45%)` } : {}}
+                    >
                         {client.image_url ? (
                             <img src={client.image_url} alt={client.name} className="w-full h-full object-cover" />
                         ) : (
-                            <span>{client.name.substring(0, 2).toUpperCase()}</span>
+                            <span>{(client.name || '?')[0].toUpperCase()}</span>
                         )}
                     </div>
                 </div>

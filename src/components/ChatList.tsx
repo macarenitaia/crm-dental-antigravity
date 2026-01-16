@@ -96,15 +96,18 @@ const ChatList = ({ onSelectClient }: { onSelectClient: (client: Client) => void
                         className="flex px-4 py-3 border-b border-gray-100 hover:bg-[#f0f2f5] cursor-pointer transition-colors group"
                     >
                         <div className="flex-shrink-0 mr-4">
-                            {client.profile_picture ? (
+                            {client.image_url ? (
                                 <img
-                                    src={client.profile_picture}
+                                    src={client.image_url}
                                     alt={client.name || 'User'}
-                                    className="w-12 h-12 rounded-full object-cover"
+                                    className="w-12 h-12 rounded-full object-cover border border-gray-100"
                                 />
                             ) : (
-                                <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center text-gray-600 font-semibold text-lg">
-                                    {client.name?.[0] || '?'}
+                                <div
+                                    className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-sm"
+                                    style={{ backgroundColor: `hsl(${(client.name || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 360}, 65%, 45%)` }}
+                                >
+                                    {(client.name || '?')[0].toUpperCase()}
                                 </div>
                             )}
                         </div>

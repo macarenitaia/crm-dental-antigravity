@@ -75,12 +75,13 @@ export async function POST(req: NextRequest) {
         const value = changes?.value;
         const message = value?.messages?.[0];
 
-        if (message && message.type === 'text') {
+        if (message && (message.type === 'text' || message.type === 'image')) {
             const from = message.from;
-            const text = message.text.body;
+            const text = message.text?.body || (message.type === 'image' ? '[Imagen]' : '');
+            const profileName = value?.contacts?.[0]?.profile?.name;
 
             try {
-                await processUserMessage(from, text);
+                await processUserMessage(from, text, profileName);
             } catch (err: any) {
                 console.error("Agent Error:", err);
                 try {

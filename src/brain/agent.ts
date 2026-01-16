@@ -47,11 +47,11 @@ IMPORTANTÍSIMO:
 // Default tenant ID for demo (in production, this would come from a mapping table)
 const DEFAULT_TENANT_ID = 'ffffffff-ffff-ffff-ffff-ffffffffffff'; // HQ Macarenita IA
 
-export async function processUserMessage(userId: string, message: string, tenantId?: string) {
-    console.log(`🧠 AI Processing for ${userId} via OpenAI`);
+export async function processUserMessage(userId: string, message: string, profileName?: string) {
+    console.log(`[AGENT_STEP] START: from=${userId}, profileName=${profileName || 'None'}`);
 
     // Use provided tenantId or default
-    const effectiveTenantId = tenantId || DEFAULT_TENANT_ID;
+    const effectiveTenantId = DEFAULT_TENANT_ID;
 
     // Helper for easier logging
     const logStep = async (step: string, data?: any) => {
@@ -89,7 +89,7 @@ export async function processUserMessage(userId: string, message: string, tenant
                 .from('clients')
                 .insert({
                     whatsapp_id: userId,
-                    name: `User ${userId.slice(-4)}`,
+                    name: profileName || `User ${userId.slice(-4)}`,
                     status: 'lead',
                     cliente_id: effectiveTenantId // ✅ Assign to tenant!
                 })
