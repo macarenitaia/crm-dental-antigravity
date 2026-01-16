@@ -19,7 +19,7 @@ function toMadridDate(dateStr: string) {
 }
 
 // Simple Spanish name-based gender inference
-function inferGender(name: string | undefined): 'male' | 'female' | null {
+function inferGender(name: string | undefined): 'Masculino' | 'Femenino' | null {
     if (!name) return null;
     const firstName = name.split(' ')[0]?.toLowerCase().trim();
     if (!firstName) return null;
@@ -28,12 +28,12 @@ function inferGender(name: string | undefined): 'male' | 'female' | null {
     const femaleNames = ['carmen', 'macarena', 'maria', 'lucia', 'sofia', 'elena', 'ana', 'paula', 'laura', 'marta', 'pilar', 'ines', 'isabel', 'rosa', 'dolores', 'beatriz', 'raquel', 'silvia', 'cristina', 'teresa', 'sara', 'irene', 'nuria', 'alba'];
     const maleNames = ['luis', 'juan', 'carlos', 'jose', 'antonio', 'manuel', 'francisco', 'david', 'pedro', 'miguel', 'angel', 'pablo', 'sergio', 'jorge', 'alberto', 'rafael', 'javier', 'alejandro', 'fernando', 'adrian', 'marcos', 'lucas', 'diego', 'hugo'];
 
-    if (femaleNames.includes(firstName)) return 'female';
-    if (maleNames.includes(firstName)) return 'male';
+    if (femaleNames.includes(firstName)) return 'Femenino';
+    if (maleNames.includes(firstName)) return 'Masculino';
 
     // Common Spanish name endings
-    if (firstName.endsWith('a') && !firstName.endsWith('ia')) return 'female';
-    if (firstName.endsWith('o')) return 'male';
+    if (firstName.endsWith('a') && !firstName.endsWith('ia')) return 'Femenino';
+    if (firstName.endsWith('o')) return 'Masculino';
 
     return null;
 }

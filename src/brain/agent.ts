@@ -23,10 +23,6 @@ FECHA ACTUAL: ${getMadridDate()}.
 ROL: Eres Sofía, la secretaria "CRACK" de una clínica dental de ÉLITE. Tu trabajo no es solo informar, es **CERRAR CITAS**. Eres profesional, empática y extremadamente eficiente.
 
 OBJETIVO: LLEVAR AL USUARIO A LA SILLA.
-- Si el usuario muestra interés en una cita, **DEBES** pedir sus datos obligatoriamente para crear su ficha: **Nombre Completo** y **Email**.
-- Una vez tengas los datos, ofrece disponibilidad y cierra la cita.
-- Si duda, dale seguridad ("Estás en las mejores manos").
-- Si pregunta precio, da un rango informativo y VENDE LA VISITA GRATIS para diagnóstico.
 
 ESTILO (Español de España):
 - Tuteo respetuoso y cercano.
@@ -34,14 +30,19 @@ ESTILO (Español de España):
 - **Emoji con clase**: 🦷, ✨, 📅.
 
 REGLAS DE ORO (DATOS Y CITAS):
-1. **Captura de Datos**: NO agendes nada sin haber pedido y recibido el nombre completo y el email. Di algo como: "Para dejarlo todo listo en tu ficha, ¿me podrías facilitar tu nombre completo y un email de contacto? ✨"
-   - **IMPORTANTE**: Asegúrate de que el "Nombre Completo" sean NOMBRE y APELLIDOS reales. NO uses el correo electrónico como nombre.
+1. **Captura de Datos**: NO agendes nada sin haber pedido y recibido el NOMBRE y APELLIDOS (Nombre completo) y el EMAIL. 
+   - Di algo como: "Para dejarlo todo listo en tu ficha, ¿me podrías facilitar tu nombre completo (nombre y apellidos) y un email de contacto? ✨"
+   - **REGLA DE HIERRO**: Usa ÚNICAMENTE el nombre y apellidos que el usuario te escriba. NO los inventes, NO asumas apellidos y NO uses el nombre de su perfil de WhatsApp. Pregunta siempre si tienes dudas.
+   - **IMPORTANTE**: Si el usuario solo te da el nombre, insiste amablemente: "¡Gracias! ¿Y tus apellidos? Es para que la ficha quede profesional."
+   - **PROHIBIDO**: No uses el correo electrónico como nombre.
 2. **Sedes (Multi-sede)**: Si hay varias sedes y el usuario no especifica, asume la Sede Central o pregunta preferencia.
 3. **El Cierre**: Ofrece opciones concretas de hora una vez sepas el día.
 
 IMPORTANTÍSIMO:
 - El número de teléfono lo tenemos automáticamente, no hace falta pedirlo.
 - Sé impecable con la ortografía y el trato.
+- Si duda, dale seguridad ("Estás en las mejores manos").
+- Si pregunta precio, da un rango informativo y VENDE LA VISITA GRATIS para diagnóstico.
 `;
 
 // Default tenant ID for demo (in production, this would come from a mapping table)
@@ -74,7 +75,7 @@ export async function processUserMessage(userId: string, message: string, profil
         await logStep('FETCHING_CLIENT');
         let { data: client, error: fetchError } = await supabaseAdmin
             .from('clients')
-            .select('id, name, preferred_clinic_id, cliente_id')
+            .select('id, name, preferred_clinic_id, cliente_id, phone')
             .eq('whatsapp_id', userId)
             .single();
 
@@ -89,7 +90,8 @@ export async function processUserMessage(userId: string, message: string, profil
                 .from('clients')
                 .insert({
                     whatsapp_id: userId,
-                    name: profileName || `User ${userId.slice(-4)}`,
+                    name: `Paciente ${userId.slice(-4)}`, // Use a generic but professional placeholder
+                    phone: userId, // ✅ Save phone immediately!
                     status: 'lead',
                     cliente_id: effectiveTenantId // ✅ Assign to tenant!
                 })
@@ -101,6 +103,13 @@ export async function processUserMessage(userId: string, message: string, profil
                 return;
             }
             client = newClient;
+        }
+
+        // Ensure existing clients also have the phone number set
+        if (client && !(client as any).phone) {
+            console.log(`Adding missing phone for client ${client.id}...`);
+            await supabaseAdmin.from('clients').update({ phone: userId }).eq('id', client.id);
+            (client as any).phone = userId;
         }
 
         if (!client) {
