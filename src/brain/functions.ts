@@ -123,7 +123,8 @@ export async function bookAppointment(clientId: string, startTime: string, reaso
             end_time: end.toISOString(),
             status: 'scheduled',
             clinic_id: clinicId || null,
-            doctor_id: doctorId, // ✅ Auto-assigned doctor!
+            doctor_id: doctorId,
+            reason: reason || null, // ✅ Save visit reason!
             cliente_id: tenantId || null
         })
         .select()

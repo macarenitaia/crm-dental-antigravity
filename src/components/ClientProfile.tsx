@@ -158,7 +158,30 @@ const ClientProfile = ({ client: initialClient, onClose }: ClientProfileProps) =
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div className="p-6 bg-emerald-50/50 rounded-3xl border border-emerald-100 group hover:bg-emerald-50 transition-colors">
                                                 <h4 className="text-sm font-bold text-emerald-700 uppercase tracking-widest mb-4">Próxima Visita</h4>
-                                                <p className="text-gray-500 text-sm">No hay citas programadas próximamente.</p>
+                                                {(() => {
+                                                    const now = new Date();
+                                                    const upcoming = appointments.find(a =>
+                                                        new Date(a.start_time) > now &&
+                                                        a.status !== 'cancelled'
+                                                    );
+                                                    if (upcoming) {
+                                                        const date = new Date(upcoming.start_time);
+                                                        return (
+                                                            <div>
+                                                                <p className="text-gray-900 font-bold text-lg">
+                                                                    {date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+                                                                </p>
+                                                                <p className="text-emerald-600 font-medium">
+                                                                    {date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                                                                </p>
+                                                                {(upcoming as any).reason && (
+                                                                    <p className="text-gray-500 text-sm mt-1">Motivo: {(upcoming as any).reason}</p>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    }
+                                                    return <p className="text-gray-500 text-sm">No hay citas programadas próximamente.</p>;
+                                                })()}
                                             </div>
                                             <div className="p-6 bg-blue-50/50 rounded-3xl border border-blue-100 group hover:bg-blue-50 transition-colors">
                                                 <h4 className="text-sm font-bold text-blue-700 uppercase tracking-widest mb-4">Tratamiento Activo</h4>
