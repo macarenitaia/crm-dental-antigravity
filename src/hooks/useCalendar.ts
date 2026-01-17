@@ -113,8 +113,9 @@ export const useCalendar = () => {
             // 2. Clinic Filter
             if (selectedClinicId && app.clinic_id !== selectedClinicId) return false;
 
-            // 3. Doctor Filter
-            if (app.doctor_id && selectedDoctors.length > 0 && !selectedDoctors.includes(app.doctor_id)) return false;
+            // 3. Doctor Filter - if no doctors selected, show nothing. If doctor has no doctor_id, show based on whether any doctors are selected.
+            if (selectedDoctors.length === 0) return false; // No doctors selected = show nothing
+            if (app.doctor_id && !selectedDoctors.includes(app.doctor_id)) return false;
 
             // 4. Search Filter
             if (!searchQuery) return true;
