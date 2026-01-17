@@ -91,7 +91,52 @@ export const CalendarSidebar: React.FC<CalendarSidebarProps> = ({
                 onSelectDate={onSelectDate}
             />
 
-            {/* Doctors Filter Removed as per user request */}
+            {/* Doctors Filter - Google Calendar Style */}
+            {doctors && doctors.length > 0 && (
+                <div className="mt-2">
+                    <div className="flex items-center justify-between px-2 py-2 hover:bg-gray-50 rounded-lg cursor-pointer group">
+                        <span className="text-sm font-medium text-[#3c4043]">Mis doctores</span>
+                        <button
+                            onClick={onSelectAllDoctors}
+                            className="text-xs text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity hover:underline"
+                        >
+                            {selectedDoctors.length === doctors.length ? 'Ninguno' : 'Todos'}
+                        </button>
+                    </div>
+                    <div className="space-y-0.5">
+                        {doctors.map(doctor => {
+                            const isSelected = selectedDoctors.includes(doctor.id);
+                            return (
+                                <div
+                                    key={doctor.id}
+                                    onClick={() => onToggleDoctor(doctor.id)}
+                                    className="flex items-center gap-3 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                                >
+                                    {/* Checkbox with doctor color */}
+                                    <div
+                                        className={`w-4 h-4 rounded-sm flex items-center justify-center transition-all ${isSelected
+                                                ? 'shadow-sm'
+                                                : 'border-2 border-gray-300'
+                                            }`}
+                                        style={{
+                                            backgroundColor: isSelected ? doctor.color : 'transparent',
+                                            borderColor: isSelected ? doctor.color : undefined
+                                        }}
+                                    >
+                                        {isSelected && (
+                                            <Check size={12} className="text-white" strokeWidth={3} />
+                                        )}
+                                    </div>
+                                    {/* Doctor name */}
+                                    <span className={`text-sm truncate ${isSelected ? 'text-[#3c4043]' : 'text-gray-400'}`}>
+                                        {doctor.name}
+                                    </span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
         </aside>
     );
 };
