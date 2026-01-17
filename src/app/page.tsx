@@ -18,6 +18,7 @@ export default function Dashboard() {
     completed: 0,
     estimatedSales: 0
   });
+  const [upcomingAppointments, setUpcomingAppointments] = useState<any[]>([]);
   const [period, setPeriod] = useState('week');
 
   useEffect(() => {
@@ -75,6 +76,24 @@ export default function Dashboard() {
       .gte('created_at', startDate);
 
     const totalSales = treatments?.reduce((sum, t) => sum + (Number(t.budget_amount) || 0), 0) || 0;
+
+    // 3. Upcoming Appointments for the TABLE (Next 5 from NOW)
+    const { data: upcoming } = await supabase
+      .from('appointments')
+      .select(`
+        id,
+        start_time,
+        status,
+        clients (name),
+        clinics (name)
+      `)
+      .eq('cliente_id', tenantId)
+      .gte('start_time', now) // Future only
+      .neq('status', 'cancelled')
+      .order('start_time', { ascending: true })
+      .limit(5);
+
+    if (upcoming) setUpcomingAppointments(upcoming);
 
     if (appointments) {
       setStats({
@@ -212,17 +231,46 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                <tr className="group">
-                  <td className="py-4">
-                    <div className="font-medium text-gray-900">Sincronizando...</div>
-                    <div className="text-xs text-gray-500 italic">Cargando datos en tiempo real</div>
-                  </td>
-                  <td className="py-4 text-sm text-gray-600">--:--</td>
-                  <td className="py-4 text-sm text-gray-600">--</td>
-                  <td className="py-4">
-                    <span className="px-2 py-1 bg-gray-100 text-gray-500 text-[10px] font-bold uppercase rounded-full">Espera</span>
-                  </td>
-                </tr>
+                {upcomingAppointments.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="py-8 text-center text-gray-400 text-sm">
+                      No hay citas próximas programadas
+                    </td>
+                  </tr>
+                ) : (
+                  upcomingAppointments.map((appt) => {
+                    const date = new Date(appt.start_time);
+                    const timeStr = date.toLocaleTimeString('es-ES', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      timeZone: 'Europe/Madrid'
+                    });
+                    const dateStr = date.toLocaleDateString('es-ES', {
+                      day: 'numeric',
+                      month: 'short'
+                    });
+
+                    return (
+                      <tr key={appt.id} className="group hover:bg-gray-50/50 transition-colors">
+                        <td className="py-4">
+                          <div className="font-medium text-gray-900">{(appt.clients as any)?.name || 'Paciente'}</div>
+                          <div className="text-xs text-gray-500 italic">{dateStr}</div>
+                        </td>
+                        <td className="py-4 text-sm text-gray-600 font-medium">{timeStr}</td>
+                        <td className="py-4 text-sm text-gray-600">{(appt.clinics as any)?.name || 'Sede Principal'}</td>
+                        <td className="py-4">
+                          <span className={`px-2 py-1 text-[10px] font-bold uppercase rounded-full ${appt.status === 'confirmed' ? 'bg-emerald-100 text-emerald-700' :
+                              appt.status === 'rescheduled' ? 'bg-orange-100 text-orange-700' :
+                                'bg-blue-100 text-blue-700'
+                            }`}>
+                            {appt.status === 'confirmed' ? 'Confirmada' :
+                              appt.status === 'rescheduled' ? 'Re-agendada' : 'Pendiente'}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
