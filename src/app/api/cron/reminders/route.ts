@@ -54,8 +54,17 @@ export async function GET() {
                     const aiConfig = tenant?.ai_config as any;
 
                     const appointmentDateTime = new Date(app.start_time);
-                    const dateStr = appointmentDateTime.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
-                    const timeStr = appointmentDateTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+                    const dateStr = appointmentDateTime.toLocaleDateString('es-ES', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        timeZone: 'Europe/Madrid'
+                    });
+                    const timeStr = appointmentDateTime.toLocaleTimeString('es-ES', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        timeZone: 'Europe/Madrid'
+                    });
 
                     try {
                         const vars = {
