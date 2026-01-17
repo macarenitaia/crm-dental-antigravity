@@ -92,5 +92,30 @@ export const crmTools: ChatCompletionTool[] = [
                 required: ["date"]
             }
         }
+    },
+    {
+        type: "function",
+        function: {
+            name: "reschedule_appointment",
+            description: "Reschedules an existing appointment to a new date/time. Use this when a user wants to CHANGE their existing appointment to a different time. This updates the existing appointment instead of creating a new one.",
+            parameters: {
+                type: "object",
+                properties: {
+                    original_date: {
+                        type: "string",
+                        description: "The date of the CURRENT appointment to reschedule (YYYY-MM-DD)"
+                    },
+                    new_start_time: {
+                        type: "string",
+                        description: "ISO 8601 string for the NEW appointment start time (e.g. 2023-10-27T10:00:00.000Z)"
+                    },
+                    clinicId: {
+                        type: "string",
+                        description: "Optional: The ID of the clinic if changing location"
+                    }
+                },
+                required: ["original_date", "new_start_time"]
+            }
+        }
     }
 ];

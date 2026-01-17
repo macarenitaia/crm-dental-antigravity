@@ -220,3 +220,51 @@ export async function cancel_appointment(clientId: string, date: string) {
 
     return { success: true, message: `Cancelled ${appts.length} appointment(s).` };
 }
+
+export async function reschedule_appointment(clientId: string, originalDate: string, newStartTime: string, clinicId?: string, tenantId?: string) {
+    console.log(`Rescheduling appointment for client ${clientId} from ${originalDate} to ${newStartTime}`);
+
+    // Find the existing appointment on the original date
+    const { data: appts } = await supabaseAdmin.from('appointments')
+        .select('*')
+        .eq('client_id', clientId)
+        .gte('start_time', `${originalDate}T00:00:00`)
+        .lte('start_time', `${originalDate}T23:59:59`)
+        .neq('status', 'cancelled');
+
+    if (!appts || appts.length === 0) {
+        return { error: "No appointment found to reschedule on that date." };
+    }
+
+    // Take the first appointment (most common case: 1 appointment per client per day)
+    const appointmentToReschedule = appts[0];
+
+    // Calculate new times
+    const newStart = toMadridDate(newStartTime);
+    const newEnd = new Date(newStart.getTime() + 30 * 60000); // +30 mins
+
+    // Update the existing appointment with new time and 'rescheduled' status
+    const { data, error } = await supabaseAdmin.from('appointments')
+        .update({
+            start_time: newStart.toISOString(),
+            end_time: newEnd.toISOString(),
+            status: 'rescheduled', // This will show as orange in the calendar
+            clinic_id: clinicId || appointmentToReschedule.clinic_id
+        })
+        .eq('id', appointmentToReschedule.id)
+        .select()
+        .single();
+
+    if (error) {
+        if (error.code === '23505') {
+            return { error: "Lo siento, ese horario ya está ocupado. Por favor, elige otro." };
+        }
+        return { error: `Rescheduling failed: ${error.message}` };
+    }
+
+    return {
+        success: true,
+        message: `Cita reprogramada correctamente.`,
+        appointment: data
+    };
+}

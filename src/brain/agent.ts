@@ -3,7 +3,7 @@ import { openai } from '@/lib/openai';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { sendWhatsAppMessage } from '@/lib/whatsapp';
 import { crmTools } from './tools';
-import { checkCalendarAvailability, bookAppointment, searchKnowledgeBase, cancel_appointment } from './functions';
+import { checkCalendarAvailability, bookAppointment, searchKnowledgeBase, cancel_appointment, reschedule_appointment } from './functions';
 import { ChatCompletionMessageParam, ChatCompletionMessageToolCall } from 'openai/resources/chat/completions';
 
 // Get current date in Madrid timezone
@@ -226,6 +226,16 @@ export async function processUserMessage(userId: string, message: string, profil
                     } else if (toolCall.function.name === 'cancel_appointment') {
                         if (!client) throw new Error("Client logic failure");
                         toolResult = await cancel_appointment(client.id, args.date);
+                    } else if (toolCall.function.name === 'reschedule_appointment') {
+                        if (!client) throw new Error("Client logic failure");
+                        const finalClinicId = args.clinicId || (client as any).preferred_clinic_id;
+                        toolResult = await reschedule_appointment(
+                            client.id,
+                            args.original_date,
+                            args.new_start_time,
+                            finalClinicId,
+                            clientTenantId
+                        );
                     }
 
                     messages.push({
