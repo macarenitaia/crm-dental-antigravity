@@ -49,14 +49,14 @@ IMPORTANTÍSIMO:
 - Si pregunta precio, da un rango informativo y VENDE LA VISITA GRATIS para diagnóstico.
 `;
 
-// Default tenant ID for demo (in production, this would come from a mapping table)
+// Default tenant ID for fallback (when no tenant matched by phone_id)
 const DEFAULT_TENANT_ID = 'ffffffff-ffff-ffff-ffff-ffffffffffff'; // HQ Macarenita IA
 
-export async function processUserMessage(userId: string, message: string, profileName?: string) {
-    console.log(`[AGENT_STEP] START: from=${userId}, profileName=${profileName || 'None'}`);
+export async function processUserMessage(userId: string, message: string, profileName?: string, tenantId?: string | null) {
+    console.log(`[AGENT_STEP] START: from=${userId}, profileName=${profileName || 'None'}, tenantId=${tenantId || 'default'}`);
 
-    // Use provided tenantId or default
-    const effectiveTenantId = DEFAULT_TENANT_ID;
+    // Use provided tenantId or fallback to default
+    const effectiveTenantId = tenantId || DEFAULT_TENANT_ID;
 
     // Helper for easier logging
     const logStep = async (step: string, data?: any) => {
@@ -325,7 +325,17 @@ export async function processUserMessage(userId: string, message: string, profil
         if (finalResponseText && client) {
             console.log(`🤖 AI Response: ${finalResponseText}`);
             await logStep('SENDING_WHATSAPP', { text: finalResponseText });
-            await sendWhatsAppMessage(userId, finalResponseText);
+
+            // Prepare WhatsApp credentials override if available in tenant config
+            let whatsappCreds;
+            if (tenantConfig?.ai_config?.whatsapp_keys?.phone_id && tenantConfig.ai_config.whatsapp_keys.access_token) {
+                whatsappCreds = {
+                    phoneId: tenantConfig.ai_config.whatsapp_keys.phone_id,
+                    token: tenantConfig.ai_config.whatsapp_keys.access_token
+                };
+            }
+
+            await sendWhatsAppMessage(userId, finalResponseText, whatsappCreds);
             await logStep('WHATSAPP_SENT_OK');
             await supabaseAdmin.from('messages').insert({
                 client_id: client.id,

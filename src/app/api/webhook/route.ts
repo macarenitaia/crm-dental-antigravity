@@ -3,10 +3,9 @@ import { NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { processUserMessage } from '@/brain/agent';
 
-const getSupabaseAdmin = () => createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { supabaseAdmin } from '@/lib/supabase-admin';
+
+const getSupabaseAdmin = () => supabaseAdmin;
 
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || 'antigravity_secret_token';
 
@@ -80,8 +79,32 @@ export async function POST(req: NextRequest) {
             const text = message.text?.body || (message.type === 'image' ? '[Imagen]' : '');
             const profileName = value?.contacts?.[0]?.profile?.name;
 
+            // Extract phone_number_id to identify which tenant this message is for
+            const phoneNumberId = value?.metadata?.phone_number_id;
+
+            // Lookup tenant by phone_number_id in their ai_config
+            let tenantId: string | null = null;
+            if (phoneNumberId) {
+                const { data: tenants } = await supabase
+                    .from('tenants')
+                    .select('id, ai_config')
+                    .eq('active', true);
+
+                // Find tenant whose ai_config.whatsapp_keys.phone_id matches
+                const matchingTenant = tenants?.find(t =>
+                    t.ai_config?.whatsapp_keys?.phone_id === phoneNumberId
+                );
+
+                if (matchingTenant) {
+                    tenantId = matchingTenant.id;
+                    console.log(`[WEBHOOK] Tenant matched: ${tenantId} for phone_id: ${phoneNumberId}`);
+                } else {
+                    console.warn(`[WEBHOOK] No tenant found for phone_number_id: ${phoneNumberId}`);
+                }
+            }
+
             try {
-                await processUserMessage(from, text, profileName);
+                await processUserMessage(from, text, profileName, tenantId);
             } catch (err: any) {
                 console.error("Agent Error:", err);
                 try {
@@ -89,7 +112,7 @@ export async function POST(req: NextRequest) {
                     await supabaseAsync.from('webhook_logs').insert({
                         method: 'POST_AGENT_ERROR',
                         error: err.message,
-                        body: { from, text }
+                        body: { from, text, tenantId }
                     });
                 } catch (logErr) {
                     console.error('Failed to log agent error:', logErr);

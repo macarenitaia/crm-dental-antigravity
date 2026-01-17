@@ -18,7 +18,7 @@ export async function GET() {
         // 2. Fetch completed appointments from yesterday
         const { data: appointments, error } = await supabaseAdmin
             .from('appointments')
-            .select('*, clients(whatsapp_id, name)')
+            .select('*, clients(whatsapp_id, name, cliente_id)')
             .gte('end_time', startOfDay) // Ended yesterday
             .lte('end_time', endOfDay)
             .eq('status', 'completed');
@@ -29,6 +29,14 @@ export async function GET() {
             console.log('No recent completions found.');
             return NextResponse.json({ message: 'No candidates for reviews' });
         }
+
+        // Fetch all tenants configs for lookup
+        const { data: tenants } = await supabaseAdmin
+            .from('tenants')
+            .select('id, ai_config');
+
+        const tenantMap = new Map();
+        tenants?.forEach(t => tenantMap.set(t.id, t));
 
         console.log(`Found ${appointments.length} candidates for reviews.`);
 
@@ -42,16 +50,28 @@ export async function GET() {
                 const message = `🌟 Hola ${client.name || ''}, esperamos que tu visita ayer fuera genial. \n\n¿Nos ayudarías con una reseña rápida en Google? ⭐️⭐️⭐️⭐️⭐️ es gratis y nos ayuda mucho.\n\n👉 ${googleLink}`;
 
                 try {
-                    await sendWhatsAppMessage(client.whatsapp_id, message);
+                    // Get tenant credentials
+                    const tenant = tenantMap.get(client.cliente_id);
+                    let whatsappCreds;
+
+                    if (tenant?.ai_config?.whatsapp_keys?.phone_id && tenant?.ai_config?.whatsapp_keys?.access_token) {
+                        whatsappCreds = {
+                            phoneId: tenant.ai_config.whatsapp_keys.phone_id,
+                            token: tenant.ai_config.whatsapp_keys.access_token
+                        };
+                    }
+
+                    await sendWhatsAppMessage(client.whatsapp_id, message, whatsappCreds);
 
                     // Log
                     await supabaseAdmin.from('messages').insert({
                         client_id: app.client_id,
                         role: 'assistant',
-                        content: `[SOLICITUD RESEÑA] ${message}`
+                        content: `[SOLICITUD RESEÑA] ${message}`,
+                        cliente_id: client.cliente_id // ✅ Include tenant!
                     });
 
-                    results.push({ client: client.name, status: 'sent' });
+                    results.push({ client: client.name, status: 'sent', tenant: client.cliente_id });
                 } catch (sendError: any) {
                     console.error(`Failed to send review request to ${client.name}:`, sendError);
                     results.push({ client: client.name, status: 'failed', error: sendError.message });

@@ -1,20 +1,28 @@
 
-const PHONE_ID = process.env.WHATSAPP_PHONE_ID;
-const TOKEN = process.env.WHATSAPP_ACCESS_TOKEN;
+const ENV_PHONE_ID = process.env.WHATSAPP_PHONE_ID;
+const ENV_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN;
 
-export async function sendWhatsAppMessage(to: string, message: string): Promise<any> {
-    if (!PHONE_ID || !TOKEN) {
-        console.error('Missing WhatsApp Credentials');
+interface WhatsAppCredentials {
+    phoneId: string;
+    token: string;
+}
+
+export async function sendWhatsAppMessage(to: string, message: string, creds?: WhatsAppCredentials): Promise<any> {
+    const phoneId = creds?.phoneId || ENV_PHONE_ID;
+    const token = creds?.token || ENV_TOKEN;
+
+    if (!phoneId || !token) {
+        console.error('Missing WhatsApp Credentials (env or passed)');
         throw new Error('Missing WhatsApp Credentials');
     }
 
     try {
         const response = await fetch(
-            `https://graph.facebook.com/v19.0/${PHONE_ID}/messages`,
+            `https://graph.facebook.com/v19.0/${phoneId}/messages`,
             {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${TOKEN}`,
+                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
