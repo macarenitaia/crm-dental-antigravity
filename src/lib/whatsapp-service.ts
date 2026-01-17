@@ -106,7 +106,7 @@ export async function sendAppointmentConfirmationTemplate(
         type: 'template',
         template: {
             name: finalTemplate,
-            language: { code: 'es_ES' },
+            language: { code: 'es' },
             components: components
         }
     };
