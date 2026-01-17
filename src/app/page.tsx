@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { Users, Calendar, AlertCircle, RefreshCw, Star, TrendingUp, Coins } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { useTenant } from '@/contexts/TenantContext';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 export default function Dashboard() {
   const { tenantId, user } = useTenant();
@@ -14,7 +15,8 @@ export default function Dashboard() {
     totalAppointments: 0,
     cancelled: 0,
     rescheduled: 0,
-    completed: 0
+    completed: 0,
+    estimatedSales: 0
   });
   const [period, setPeriod] = useState('week');
 
@@ -24,20 +26,55 @@ export default function Dashboard() {
     }
   }, [tenantId, period]);
 
+  const getStartDate = (period: string) => {
+    const now = new Date();
+    const start = new Date(now);
+
+    if (period === 'week') {
+      const day = start.getDay();
+      const diff = start.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is sunday
+      start.setDate(diff);
+      start.setHours(0, 0, 0, 0);
+    } else if (period === 'month') {
+      start.setDate(1);
+      start.setHours(0, 0, 0, 0);
+    } else if (period === 'year') {
+      start.setMonth(0, 1);
+      start.setHours(0, 0, 0, 0);
+    }
+    return start.toISOString();
+  };
+
   const fetchStats = async () => {
     if (!tenantId) return;
 
-    // Clients count for this tenant
+    const startDate = getStartDate(period);
+    const now = new Date().toISOString();
+
+    // 1. Clients count (total logic remains global for now, or could match new clients in period)
+    // Let's keep total clients as TOTAL for now, but maybe "New Patients" should be filtered?
+    // The metric says "Nuevos Pacientes", implies specific to period.
     const { count: clientsCount } = await supabase
       .from('clients')
       .select('*', { count: 'exact', head: true })
-      .eq('cliente_id', tenantId);
+      .eq('cliente_id', tenantId)
+      .gte('created_at', startDate); // Filter new clients by period
 
-    // Appointments for this tenant
+    // 2. Appointments for this tenant in period
     const { data: appointments } = await supabase
       .from('appointments')
       .select('*')
-      .eq('cliente_id', tenantId);
+      .eq('cliente_id', tenantId)
+      .gte('start_time', startDate);
+
+    // 3. Estimated Sales (from patient_treatments budget_amount)
+    const { data: treatments } = await supabase
+      .from('patient_treatments')
+      .select('budget_amount')
+      .eq('cliente_id', tenantId)
+      .gte('created_at', startDate);
+
+    const totalSales = treatments?.reduce((sum, t) => sum + (Number(t.budget_amount) || 0), 0) || 0;
 
     if (appointments) {
       setStats({
@@ -46,6 +83,7 @@ export default function Dashboard() {
         cancelled: appointments.filter(a => a.status === 'cancelled').length,
         rescheduled: appointments.filter(a => a.status === 'rescheduled').length,
         completed: appointments.filter(a => a.status === 'completed' || a.status === 'confirmed').length,
+        estimatedSales: totalSales
       });
     }
   };
@@ -59,6 +97,12 @@ export default function Dashboard() {
     { name: 'Vie', valor: 90 },
   ];
 
+  const periodOptions = [
+    { value: 'week', label: 'Esta semana' },
+    { value: 'month', label: 'Este mes' },
+    { value: 'year', label: 'Este año' }
+  ];
+
 
   return (
     <div className="flex-1 bg-[#f8f9fa] h-full overflow-y-auto p-8 font-sans">
@@ -68,15 +112,14 @@ export default function Dashboard() {
           <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-500 mt-1">Resumen de actividad y rendimiento</p>
         </div>
-        <select
-          value={period}
-          onChange={(e) => setPeriod(e.target.value)}
-          className="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
-        >
-          <option value="week">Esta semana</option>
-          <option value="month">Este mes</option>
-          <option value="year">Este año</option>
-        </select>
+        <div className="w-48">
+          <CustomSelect
+            options={periodOptions}
+            value={period}
+            onChange={setPeriod}
+            placeholder="Seleccionar periodo"
+          />
+        </div>
       </div>
 
       {/* METRICS ROW */}
@@ -86,7 +129,7 @@ export default function Dashboard() {
           value={stats.totalAppointments.toString()}
           icon={<Calendar className="text-white" size={24} />}
           color="bg-gray-900"
-          subtext="Ver detalles"
+          subtext="En el periodo seleccionado"
           dark
         />
         <MetricCard
@@ -94,7 +137,7 @@ export default function Dashboard() {
           value="76%"
           icon={<TrendingUp className="text-emerald-600" size={24} />}
           color="bg-white"
-          subtext="↑ 12% vs periodo anterior"
+          subtext="Calculado sobre horas útiles"
           highlight
         />
         <MetricCard
@@ -102,17 +145,17 @@ export default function Dashboard() {
           value={stats.totalClients.toString()}
           icon={<Users className="text-blue-600" size={24} />}
           color="bg-white"
-          subtext="↑ 5% vs periodo anterior"
+          subtext="Registrados en este periodo"
           highlight
         />
         <MetricCard
           label="Ventas Estimadas"
-          value="12.5k€"
+          value={`${stats.estimatedSales.toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}€`}
           icon={<Coins className="text-amber-600" size={24} />}
           color="bg-white"
-          subtext="↓ 2% vs periodo anterior"
+          subtext="Presupuestos creados"
           highlight={false}
-          trendDown
+          trendDown={false}
         />
       </div>
 
