@@ -96,6 +96,25 @@ export async function bookAppointment(clientId: string, startTime: string, reaso
 
     console.log(`Booking: Input=${startTime} -> Clinic=${clinicId || 'None'} -> Tenant=${tenantId || 'None'} -> UTC=${start.toISOString()}`);
 
+    // Auto-assign doctor if only one exists for this clinic
+    let doctorId: string | null = null;
+    if (clinicId && tenantId) {
+        const { data: doctorClinics } = await supabaseAdmin
+            .from('doctor_clinics')
+            .select('doctor_id')
+            .eq('clinic_id', clinicId)
+            .eq('cliente_id', tenantId);
+
+        if (doctorClinics && doctorClinics.length === 1) {
+            doctorId = doctorClinics[0].doctor_id;
+            console.log(`Auto-assigned doctor: ${doctorId}`);
+        } else if (doctorClinics && doctorClinics.length > 1) {
+            // If multiple doctors, pick the first one as default
+            doctorId = doctorClinics[0].doctor_id;
+            console.log(`Multiple doctors found, defaulting to first: ${doctorId}`);
+        }
+    }
+
     const { data, error } = await supabaseAdmin
         .from('appointments')
         .insert({
@@ -104,7 +123,8 @@ export async function bookAppointment(clientId: string, startTime: string, reaso
             end_time: end.toISOString(),
             status: 'scheduled',
             clinic_id: clinicId || null,
-            cliente_id: tenantId || null // ✅ Include tenant!
+            doctor_id: doctorId, // ✅ Auto-assigned doctor!
+            cliente_id: tenantId || null
         })
         .select()
         .single();
@@ -236,22 +256,48 @@ export async function reschedule_appointment(clientId: string, originalDate: str
         return { error: "No appointment found to reschedule on that date." };
     }
 
-    // Take the first appointment (most common case: 1 appointment per client per day)
-    const appointmentToReschedule = appts[0];
+    // Take the first appointment
+    const originalAppointment = appts[0];
+    const finalClinicId = clinicId || originalAppointment.clinic_id;
 
-    // Calculate new times
+    // 1. CANCEL the original appointment
+    const { error: cancelError } = await supabaseAdmin.from('appointments')
+        .update({ status: 'cancelled' })
+        .eq('id', originalAppointment.id);
+
+    if (cancelError) {
+        return { error: `Failed to cancel original appointment: ${cancelError.message}` };
+    }
+
+    // 2. Calculate new times
     const newStart = toMadridDate(newStartTime);
     const newEnd = new Date(newStart.getTime() + 30 * 60000); // +30 mins
 
-    // Update the existing appointment with new time and 'rescheduled' status
+    // 3. Auto-assign doctor for the clinic
+    let doctorId: string | null = originalAppointment.doctor_id || null;
+    if (finalClinicId && tenantId && !doctorId) {
+        const { data: doctorClinics } = await supabaseAdmin
+            .from('doctor_clinics')
+            .select('doctor_id')
+            .eq('clinic_id', finalClinicId)
+            .eq('cliente_id', tenantId);
+
+        if (doctorClinics && doctorClinics.length >= 1) {
+            doctorId = doctorClinics[0].doctor_id;
+        }
+    }
+
+    // 4. CREATE new appointment with status 'rescheduled'
     const { data, error } = await supabaseAdmin.from('appointments')
-        .update({
+        .insert({
+            client_id: clientId,
             start_time: newStart.toISOString(),
             end_time: newEnd.toISOString(),
-            status: 'rescheduled', // This will show as orange in the calendar
-            clinic_id: clinicId || appointmentToReschedule.clinic_id
+            status: 'rescheduled', // Orange color
+            clinic_id: finalClinicId,
+            doctor_id: doctorId,
+            cliente_id: tenantId || originalAppointment.cliente_id
         })
-        .eq('id', appointmentToReschedule.id)
         .select()
         .single();
 
@@ -264,7 +310,7 @@ export async function reschedule_appointment(clientId: string, originalDate: str
 
     return {
         success: true,
-        message: `Cita reprogramada correctamente.`,
+        message: `Cita reprogramada correctamente. La cita anterior ha sido cancelada.`,
         appointment: data
     };
 }
