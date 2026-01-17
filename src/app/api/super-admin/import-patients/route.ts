@@ -58,6 +58,17 @@ export async function POST(req: NextRequest) {
             const address = mapField(row, 'direccion', 'address', 'domicilio');
             const dob = mapField(row, 'fecha_nacimiento', 'nacimiento', 'birth', 'dob', 'fecha');
 
+            // Treatment fields (optional)
+            const treatmentName = mapField(row, 'tratamiento', 'treatment', 'procedimiento');
+            const treatmentDate = mapField(row, 'fecha_tratamiento', 'treatment_date', 'fecha_procedimiento');
+            const treatmentPrice = mapField(row, 'precio', 'price', 'importe', 'cost');
+            const treatmentStatus = mapField(row, 'estado_tratamiento', 'treatment_status');
+
+            // Clinical history fields (optional)
+            const historyDiagnosis = mapField(row, 'diagnostico', 'diagnosis', 'dx');
+            const historyDate = mapField(row, 'fecha_historial', 'history_date', 'fecha_visita');
+            const historyObservations = mapField(row, 'observaciones_hist', 'historia', 'history_notes');
+
             // At minimum need a name or phone
             if (!name && !phone) {
                 skipped++;
@@ -67,7 +78,8 @@ export async function POST(req: NextRequest) {
             // Clean phone (remove spaces, dashes)
             const cleanPhone = phone?.replace(/[\s\-\(\)]/g, '') || null;
 
-            // Check for duplicates by phone or email
+            // Check for duplicates by phone or email - but get the ID if exists
+            let clientId: string | null = null;
             if (cleanPhone || email) {
                 const { data: existing } = await supabase
                     .from('clients')
@@ -77,8 +89,12 @@ export async function POST(req: NextRequest) {
                     .limit(1);
 
                 if (existing && existing.length > 0) {
-                    skipped++;
-                    continue;
+                    // Patient exists, use their ID for treatments/history
+                    clientId = existing[0].id;
+                    if (!treatmentName && !historyDiagnosis) {
+                        skipped++;
+                        continue;
+                    }
                 }
             }
 
@@ -93,24 +109,52 @@ export async function POST(req: NextRequest) {
                 }
             }
 
-            // Insert patient
-            const { error } = await supabase.from('clients').insert({
-                name: name || `Paciente ${cleanPhone || ''}`,
-                phone: cleanPhone,
-                email: email || null,
-                dni: dni || null,
-                gender: normalizedGender,
-                notes: notes || null,
-                address: address || null,
-                date_of_birth: dob || null,
-                status: 'lead',
-                cliente_id: tenantId
-            });
+            // Insert patient if new
+            if (!clientId) {
+                const { data: newClient, error } = await supabase.from('clients').insert({
+                    name: name || `Paciente ${cleanPhone || ''}`,
+                    phone: cleanPhone,
+                    email: email || null,
+                    dni: dni || null,
+                    gender: normalizedGender,
+                    notes: notes || null,
+                    address: address || null,
+                    date_of_birth: dob || null,
+                    status: 'client',
+                    cliente_id: tenantId
+                }).select('id').single();
 
-            if (error) {
-                errors.push(`Fila ${i + 2}: ${error.message}`);
-            } else {
+                if (error) {
+                    errors.push(`Fila ${i + 2}: ${error.message}`);
+                    continue;
+                }
+                clientId = newClient.id;
                 imported++;
+            }
+
+            // Insert treatment if present
+            if (clientId && treatmentName) {
+                await supabase.from('patient_treatments').insert({
+                    client_id: clientId,
+                    cliente_id: tenantId,
+                    name: treatmentName,
+                    status: treatmentStatus || 'completed',
+                    budget_amount: treatmentPrice ? parseFloat(treatmentPrice) : null,
+                    start_date: treatmentDate || null,
+                    completed_at: treatmentDate ? new Date(treatmentDate).toISOString() : null
+                });
+            }
+
+            // Insert clinical history if present
+            if (clientId && historyDiagnosis) {
+                await supabase.from('clinical_history').insert({
+                    client_id: clientId,
+                    cliente_id: tenantId,
+                    date: historyDate || new Date().toISOString().split('T')[0],
+                    diagnosis: historyDiagnosis,
+                    treatment: treatmentName || null,
+                    observations: historyObservations || null
+                });
             }
         }
 

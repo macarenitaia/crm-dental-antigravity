@@ -366,10 +366,31 @@ export default function SuperAdminPage() {
 
                             <div className="bg-gray-50 rounded-xl p-4">
                                 <p className="text-sm font-bold text-gray-700 mb-2">📋 Columnas reconocidas automáticamente:</p>
-                                <div className="flex flex-wrap gap-2 text-xs">
-                                    {['nombre', 'telefono', 'email', 'dni', 'genero', 'notas', 'direccion', 'fecha_nacimiento'].map(col => (
-                                        <span key={col} className="px-2 py-1 bg-white border border-gray-200 rounded-lg text-gray-600">{col}</span>
-                                    ))}
+                                <div className="space-y-2">
+                                    <div>
+                                        <span className="text-[10px] font-bold text-gray-400 uppercase">Paciente:</span>
+                                        <div className="flex flex-wrap gap-1 mt-1">
+                                            {['nombre', 'telefono', 'email', 'dni', 'genero', 'direccion', 'fecha_nacimiento'].map(col => (
+                                                <span key={col} className="px-2 py-0.5 bg-white border border-gray-200 rounded text-[11px] text-gray-600">{col}</span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <span className="text-[10px] font-bold text-emerald-500 uppercase">Tratamientos (opcional):</span>
+                                        <div className="flex flex-wrap gap-1 mt-1">
+                                            {['tratamiento', 'fecha_tratamiento', 'precio', 'estado_tratamiento'].map(col => (
+                                                <span key={col} className="px-2 py-0.5 bg-emerald-50 border border-emerald-200 rounded text-[11px] text-emerald-700">{col}</span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <span className="text-[10px] font-bold text-blue-500 uppercase">Historial clínico (opcional):</span>
+                                        <div className="flex flex-wrap gap-1 mt-1">
+                                            {['diagnostico', 'fecha_historial', 'observaciones_hist'].map(col => (
+                                                <span key={col} className="px-2 py-0.5 bg-blue-50 border border-blue-200 rounded text-[11px] text-blue-700">{col}</span>
+                                            ))}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
