@@ -130,6 +130,19 @@ export async function processUserMessage(userId: string, message: string, profil
             .select('id, name, address')
             .eq('cliente_id', clientTenantId); // ✅ Filter by tenant!
 
+        // 2c. Load tenant's custom AI config for personalization
+        let customUserPrompt = '';
+        const { data: tenantConfig } = await supabaseAdmin
+            .from('tenants')
+            .select('ai_config')
+            .eq('id', clientTenantId)
+            .single();
+
+        if (tenantConfig?.ai_config?.user_prompt) {
+            customUserPrompt = `\n\n🎯 INSTRUCCIONES ADICIONALES DEL CLIENTE (PERSONALIZADAS):\n${tenantConfig.ai_config.user_prompt}`;
+            console.log(`[AGENT] Using custom user_prompt from tenant config`);
+        }
+
         let preferredClinicName = "Ninguna";
         if (client.preferred_clinic_id && clinics) {
             const pref = clinics.find(c => c.id === client.preferred_clinic_id);
@@ -218,7 +231,7 @@ export async function processUserMessage(userId: string, message: string, profil
 
         // Prepare message list
         let messages: ChatCompletionMessageParam[] = [
-            { role: "system", content: SYSTEM_INSTRUCTION + clinicsContext + clientContext },
+            { role: "system", content: SYSTEM_INSTRUCTION + clinicsContext + clientContext + customUserPrompt },
             ...chatHistory,
             { role: "user", content: message }
         ];
