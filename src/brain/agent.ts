@@ -75,7 +75,7 @@ export async function processUserMessage(userId: string, message: string, profil
         await logStep('FETCHING_CLIENT');
         let { data: client, error: fetchError } = await supabaseAdmin
             .from('clients')
-            .select('id, name, preferred_clinic_id, cliente_id, phone')
+            .select('id, name, email, preferred_clinic_id, cliente_id, phone')
             .eq('whatsapp_id', userId)
             .single();
 
@@ -138,6 +138,59 @@ export async function processUserMessage(userId: string, message: string, profil
             `REGLA DE PREFERENCIA: Si la preferencia NO es "Ninguna", ASUME esa sede por defecto salvo que el usuario diga lo contrario. Evita preguntar.`
             : "\n\n(No hay clínicas configuradas, asume sede única)";
 
+        // 2b. Fetch upcoming appointments for this client
+        const now = new Date().toISOString();
+        const { data: upcomingAppointments } = await supabaseAdmin
+            .from('appointments')
+            .select('id, start_time, end_time, status, clinic_id')
+            .eq('client_id', client.id)
+            .gte('start_time', now)
+            .neq('status', 'cancelled')
+            .order('start_time', { ascending: true })
+            .limit(5);
+
+        // Build client context for AI
+        const clientName = client.name && !client.name.startsWith('Paciente ') ? client.name : null;
+        const clientEmail = (client as any).email || null;
+
+        let clientContext = '\n\n📋 INFORMACIÓN DEL PACIENTE ACTUAL:';
+        if (clientName) {
+            clientContext += `\n- Nombre: ${clientName}`;
+        } else {
+            clientContext += `\n- Nombre: Desconocido (pregunta nombre y apellidos)`;
+        }
+        if (clientEmail) {
+            clientContext += `\n- Email: ${clientEmail}`;
+        } else {
+            clientContext += `\n- Email: No registrado (preguntar si es necesario para agendar)`;
+        }
+        clientContext += `\n- Teléfono: Ya lo tenemos (${userId})`;
+
+        // Add upcoming appointments info
+        if (upcomingAppointments && upcomingAppointments.length > 0) {
+            clientContext += '\n\n📅 CITAS PRÓXIMAS DE ESTE PACIENTE:';
+            for (const appt of upcomingAppointments) {
+                const apptDate = new Date(appt.start_time);
+                const formattedDate = apptDate.toLocaleDateString('es-ES', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                    timeZone: 'Europe/Madrid'
+                });
+                const formattedTime = apptDate.toLocaleTimeString('es-ES', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    timeZone: 'Europe/Madrid'
+                });
+                const clinicName = clinics?.find(c => c.id === appt.clinic_id)?.name || 'sede principal';
+                clientContext += `\n- ${formattedDate} a las ${formattedTime} en ${clinicName} (ID: ${appt.id})`;
+            }
+            clientContext += '\n\nIMPORTANTE: Si el paciente quiere cambiar una cita, usa reschedule_appointment con la fecha ORIGINAL de la cita existente.';
+        } else {
+            clientContext += '\n\n📅 Este paciente NO tiene citas próximas.';
+        }
+
         // 2b. Load History for this client only
         const { data: history } = await supabaseAdmin
             .from('messages')
@@ -161,7 +214,7 @@ export async function processUserMessage(userId: string, message: string, profil
 
         // Prepare message list
         let messages: ChatCompletionMessageParam[] = [
-            { role: "system", content: SYSTEM_INSTRUCTION + clinicsContext },
+            { role: "system", content: SYSTEM_INSTRUCTION + clinicsContext + clientContext },
             ...chatHistory,
             { role: "user", content: message }
         ];
