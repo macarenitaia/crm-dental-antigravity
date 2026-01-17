@@ -6,7 +6,7 @@ import {
     Shield, Building, UserPlus, List, Activity,
     CheckCircle2, AlertCircle, LayoutDashboard,
     Bot, MessageSquare, Stethoscope, Briefcase,
-    Globe, Save, Edit3, Plus, Trash2, ChevronRight
+    Globe, Save, Edit3, Plus, Trash2, ChevronRight, Upload, FileSpreadsheet
 } from 'lucide-react';
 import CustomSelect from '@/components/ui/CustomSelect';
 import {
@@ -45,6 +45,9 @@ export default function SuperAdminPage() {
     const [mappingString, setMappingString] = useState('{}');
     const [watchTenantId, setWatchTenantId] = useState('');
     const [watchClinicId, setWatchClinicId] = useState('');
+    const [importFile, setImportFile] = useState<File | null>(null);
+    const [importResult, setImportResult] = useState<any>(null);
+    const [importing, setImporting] = useState(false);
 
     useEffect(() => {
         if (isSuperAdmin) {
@@ -181,6 +184,40 @@ export default function SuperAdminPage() {
         }
     };
 
+    const handleImportPatients = async () => {
+        if (!importFile || !selectedTenantId) {
+            setMessage({ type: 'error', text: 'Selecciona un archivo y un cliente' });
+            return;
+        }
+        setImporting(true);
+        setImportResult(null);
+        try {
+            const formData = new FormData();
+            formData.append('file', importFile);
+            formData.append('tenantId', selectedTenantId);
+            formData.append('adminEmail', user!.email);
+
+            const response = await fetch('/api/super-admin/import-patients', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error);
+
+            setImportResult(result);
+            setMessage({
+                type: 'success',
+                text: `Importación completada: ${result.imported} pacientes importados, ${result.skipped} omitidos`
+            });
+            setImportFile(null);
+        } catch (err: any) {
+            setMessage({ type: 'error', text: err.message });
+        } finally {
+            setImporting(false);
+        }
+    };
+
     const selectedTenant = useMemo(() => data.tenants.find(t => t.id === selectedTenantId), [data.tenants, selectedTenantId]);
     const tenantClinics = useMemo(() => data.clinics.filter(c => c.tenant_id === selectedTenantId), [data.clinics, selectedTenantId]);
     const tenantDoctors = useMemo(() => data.doctors.filter(d => d.cliente_id === selectedTenantId), [data.doctors, selectedTenantId]);
@@ -300,6 +337,70 @@ export default function SuperAdminPage() {
                             </div>
                             <button type="submit" className="w-full py-3 bg-emerald-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all">Vincular Usuario Admin</button>
                         </form>
+                    </div>
+
+                    {/* Import Patients */}
+                    <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                        <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                            <FileSpreadsheet className="text-emerald-600" /> Importar Pacientes (Excel/CSV)
+                        </h2>
+                        <div className="space-y-4">
+                            <div className="border-2 border-dashed border-gray-200 rounded-2xl p-8 text-center hover:border-emerald-400 transition-colors">
+                                <input
+                                    type="file"
+                                    accept=".xlsx,.xls,.csv"
+                                    onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                                    className="hidden"
+                                    id="import-file"
+                                />
+                                <label htmlFor="import-file" className="cursor-pointer">
+                                    <Upload size={40} className="mx-auto text-gray-400 mb-4" />
+                                    {importFile ? (
+                                        <p className="text-emerald-600 font-bold">{importFile.name}</p>
+                                    ) : (
+                                        <p className="text-gray-500">Arrastra o haz clic para seleccionar archivo</p>
+                                    )}
+                                    <p className="text-xs text-gray-400 mt-2">Formatos: Excel (.xlsx, .xls) o CSV</p>
+                                </label>
+                            </div>
+
+                            <div className="bg-gray-50 rounded-xl p-4">
+                                <p className="text-sm font-bold text-gray-700 mb-2">📋 Columnas reconocidas automáticamente:</p>
+                                <div className="flex flex-wrap gap-2 text-xs">
+                                    {['nombre', 'telefono', 'email', 'dni', 'genero', 'notas', 'direccion', 'fecha_nacimiento'].map(col => (
+                                        <span key={col} className="px-2 py-1 bg-white border border-gray-200 rounded-lg text-gray-600">{col}</span>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={handleImportPatients}
+                                disabled={!importFile || importing}
+                                className="w-full py-3 bg-emerald-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            >
+                                {importing ? (
+                                    <><Activity className="animate-spin" size={18} /> Importando...</>
+                                ) : (
+                                    <><Upload size={18} /> Importar Pacientes</>
+                                )}
+                            </button>
+
+                            {importResult && (
+                                <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4">
+                                    <p className="font-bold text-emerald-800">✅ Resultado:</p>
+                                    <ul className="text-sm text-emerald-700 mt-2 space-y-1">
+                                        <li>• Total filas: {importResult.total}</li>
+                                        <li>• Importados: {importResult.imported}</li>
+                                        <li>• Omitidos (duplicados): {importResult.skipped}</li>
+                                    </ul>
+                                    {importResult.errors?.length > 0 && (
+                                        <div className="mt-2 text-xs text-red-600">
+                                            {importResult.errors.map((e: string, i: number) => <p key={i}>{e}</p>)}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}
