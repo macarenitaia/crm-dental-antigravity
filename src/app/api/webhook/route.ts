@@ -177,17 +177,36 @@ export async function POST(req: NextRequest) {
                         );
                         console.log(`[WEBHOOK] Appointment ${appointment.id} confirmed for ${patient.name}`);
                     } else if (buttonText === 'Reprogramar') {
+                        // Mark appointment as needs_reschedule
                         await supabase
                             .from('appointments')
                             .update({ status: 'needs_reschedule' })
                             .eq('id', appointment.id);
 
-                        await sendWhatsAppTextMessage(
-                            from,
-                            `ℹ️ Entendido ${patient.name}. Nuestra secretaria se pondrá en contacto contigo para reprogramar tu cita.`,
-                            creds
-                        );
-                        console.log(`[WEBHOOK] Appointment ${appointment.id} marked for reschedule`);
+                        // Format the original appointment date for context
+                        const appointmentDate = new Date(appointment.start_time);
+                        const dateStr = appointmentDate.toLocaleDateString('es-ES', {
+                            weekday: 'long',
+                            day: 'numeric',
+                            month: 'long',
+                            timeZone: 'Europe/Madrid'
+                        });
+                        const timeStr = appointmentDate.toLocaleTimeString('es-ES', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            timeZone: 'Europe/Madrid'
+                        });
+
+                        // Trigger the AI agent with rescheduling context
+                        const rescheduleMessage = `Quiero reprogramar mi cita del ${dateStr} a las ${timeStr}. ¿Qué días y horarios tienen disponibles?`;
+
+                        console.log(`[WEBHOOK] Starting reschedule flow for ${patient.name}, appointment ${appointment.id}`);
+
+                        // Get tenant ID from patient
+                        const tenantId = patient.cliente_id;
+
+                        // Call the AI agent to handle the rescheduling conversation
+                        await processUserMessage(from, rescheduleMessage, patient.name, tenantId);
                     }
                 } else {
                     console.warn(`[WEBHOOK] No upcoming appointment found for patient ${patient.id}`);
