@@ -54,7 +54,7 @@ export const useClientProfile = (client: Client | null) => {
             .select('*')
             .eq('client_id', client.id)
             .eq('cliente_id', tenantId)
-            .order('start_time', { ascending: false });
+            .order('start_time', { ascending: true });
 
         if (data) {
             const now = new Date();
