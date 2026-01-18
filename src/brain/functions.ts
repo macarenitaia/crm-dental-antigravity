@@ -245,13 +245,26 @@ export async function cancel_appointment(clientId: string, date: string) {
 export async function reschedule_appointment(clientId: string, originalDate: string, newStartTime: string, clinicId?: string, tenantId?: string) {
     console.log(`Rescheduling appointment for client ${clientId} from ${originalDate} to ${newStartTime}`);
 
-    // Find the existing appointment on the original date
-    const { data: appts } = await supabaseAdmin.from('appointments')
+    // First, check if there's a "needs_reschedule" appointment (from button click)
+    const { data: needsReschedule } = await supabaseAdmin.from('appointments')
         .select('*')
         .eq('client_id', clientId)
-        .gte('start_time', `${originalDate}T00:00:00`)
-        .lte('start_time', `${originalDate}T23:59:59`)
-        .neq('status', 'cancelled');
+        .eq('status', 'needs_reschedule')
+        .order('start_time', { ascending: true })
+        .limit(1);
+
+    let appts = needsReschedule;
+
+    // If no needs_reschedule found, search by original date
+    if (!appts || appts.length === 0) {
+        const { data: dateAppts } = await supabaseAdmin.from('appointments')
+            .select('*')
+            .eq('client_id', clientId)
+            .gte('start_time', `${originalDate}T00:00:00`)
+            .lte('start_time', `${originalDate}T23:59:59`)
+            .neq('status', 'cancelled');
+        appts = dateAppts;
+    }
 
     if (!appts || appts.length === 0) {
         return { error: "No appointment found to reschedule on that date." };
