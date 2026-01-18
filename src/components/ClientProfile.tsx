@@ -160,10 +160,9 @@ const ClientProfile = ({ client: initialClient, onClose }: ClientProfileProps) =
                                                 <h4 className="text-sm font-bold text-emerald-700 uppercase tracking-widest mb-4">Próxima Visita</h4>
                                                 {(() => {
                                                     const now = new Date();
-                                                    const upcoming = appointments.find(a =>
-                                                        new Date(a.start_time) > now &&
-                                                        a.status !== 'cancelled'
-                                                    );
+                                                    const upcoming = appointments
+                                                        .filter(a => new Date(a.start_time) > now && a.status !== 'cancelled')
+                                                        .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())[0];
                                                     if (upcoming) {
                                                         const date = new Date(upcoming.start_time);
                                                         return (
