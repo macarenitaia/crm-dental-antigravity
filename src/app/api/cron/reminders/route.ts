@@ -82,6 +82,12 @@ export async function GET() {
 
                         await sendAppointmentConfirmationTemplate(client.whatsapp_id, vars, creds);
 
+                        // Update appointment status to 'confirmed' after sending reminder
+                        await supabaseAdmin
+                            .from('appointments')
+                            .update({ status: 'confirmed' })
+                            .eq('id', app.id);
+
                         const logMessage = `[TEMPLATE: ${creds.templateName || 'confirmacion_cita'}] Paciente: ${client.name}, Fecha: ${dateStr}, Hora: ${timeStr}`;
 
                         logsToInsert.push({
