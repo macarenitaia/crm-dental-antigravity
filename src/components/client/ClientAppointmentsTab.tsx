@@ -59,13 +59,13 @@ export const ClientAppointmentsTab: React.FC<ClientAppointmentsTabProps> = ({ ap
                             <div key={app.id} className="bg-white p-4 rounded-xl border border-gray-100 hover:shadow-md transition-shadow flex items-center justify-between group">
                                 <div className="flex items-center gap-4">
                                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${getStatusColor(app.status)}`}>
-                                        <span className="text-lg font-bold">{new Date(app.start_time).getDate()}</span>
+                                        <span className="text-lg font-bold">{new Date(app.start_time).toLocaleDateString('es-ES', { day: 'numeric', timeZone: 'Europe/Madrid' })}</span>
                                     </div>
                                     <div>
-                                        <h4 className="font-bold text-gray-900">{new Date(app.start_time).toLocaleDateString([], { weekday: 'long', month: 'long', year: 'numeric' })}</h4>
+                                        <h4 className="font-bold text-gray-900">{new Date(app.start_time).toLocaleDateString('es-ES', { weekday: 'long', month: 'long', year: 'numeric', timeZone: 'Europe/Madrid' })}</h4>
                                         <div className="flex items-center gap-3 text-sm text-gray-500 mt-1">
                                             <span className="flex items-center gap-1">
-                                                <Clock size={14} /> {new Date(app.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                <Clock size={14} /> {new Date(app.start_time).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' })}
                                             </span>
                                             <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(app.status)}`}>
                                                 {getStatusIcon(app.status)}
