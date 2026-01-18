@@ -111,9 +111,7 @@ export async function sendAppointmentConfirmationTemplate(
         }
     };
 
-    console.log(`--- [WhatsApp] Sending Template ${finalTemplate} to ${to}`);
-    console.log(`--- [WhatsApp] Full Payload:`, JSON.stringify(payload, null, 2));
-    console.log(`--- [WhatsApp] Phone ID: ${finalPhoneId}, Token (first 10): ${finalToken?.substring(0, 10)}...`);
+    console.log(`[WhatsApp] Sending template ${finalTemplate} to ${to}`);
 
     const response = await fetch(
         `https://graph.facebook.com/v19.0/${finalPhoneId}/messages`,
