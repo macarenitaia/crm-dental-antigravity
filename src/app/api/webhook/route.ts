@@ -74,6 +74,7 @@ export async function POST(req: NextRequest) {
         const value = changes?.value;
         const message = value?.messages?.[0];
 
+        // Handle text/image messages (AI Agent)
         if (message && (message.type === 'text' || message.type === 'image')) {
             const from = message.from;
             const text = message.text?.body || (message.type === 'image' ? '[Imagen]' : '');
@@ -108,8 +109,7 @@ export async function POST(req: NextRequest) {
             } catch (err: any) {
                 console.error("Agent Error:", err);
                 try {
-                    const supabaseAsync = getSupabaseAdmin();
-                    await supabaseAsync.from('webhook_logs').insert({
+                    await supabase.from('webhook_logs').insert({
                         method: 'POST_AGENT_ERROR',
                         error: err.message,
                         body: { from, text, tenantId }
@@ -117,6 +117,83 @@ export async function POST(req: NextRequest) {
                 } catch (logErr) {
                     console.error('Failed to log agent error:', logErr);
                 }
+            }
+        }
+
+        // Handle button clicks from templates (Confirmar/Reprogramar)
+        else if (message?.type === 'button') {
+            const buttonText = message.button?.text;
+            const from = message.from;
+
+            console.log(`[WEBHOOK] Button clicked: "${buttonText}" from ${from}`);
+
+            // Find client by whatsapp_id
+            const { data: clients } = await supabase
+                .from('clients')
+                .select('id, name, cliente_id')
+                .eq('whatsapp_id', from)
+                .limit(1);
+
+            if (clients?.length) {
+                const patient = clients[0];
+
+                // Find the most recent confirmed OR scheduled appointment
+                const { data: appointments } = await supabase
+                    .from('appointments')
+                    .select('id, start_time, status')
+                    .eq('client_id', patient.id)
+                    .eq('cliente_id', patient.cliente_id)
+                    .in('status', ['scheduled', 'confirmed'])
+                    .gte('start_time', new Date().toISOString())
+                    .order('start_time', { ascending: true })
+                    .limit(1);
+
+                if (appointments?.length) {
+                    const appointment = appointments[0];
+                    const { sendWhatsAppTextMessage } = await import('@/lib/whatsapp-service');
+
+                    // Get tenant credentials
+                    const { data: tenant } = await supabase
+                        .from('tenants')
+                        .select('ai_config')
+                        .eq('id', patient.cliente_id)
+                        .single();
+
+                    const creds = {
+                        phoneId: tenant?.ai_config?.whatsapp_keys?.phone_id,
+                        token: tenant?.ai_config?.whatsapp_keys?.api_key
+                    };
+
+                    if (buttonText === 'Confirmar') {
+                        await supabase
+                            .from('appointments')
+                            .update({ status: 'confirmed' })
+                            .eq('id', appointment.id);
+
+                        await sendWhatsAppTextMessage(
+                            from,
+                            `✅ ¡Gracias ${patient.name}! Tu cita ha sido confirmada con éxito.`,
+                            creds
+                        );
+                        console.log(`[WEBHOOK] Appointment ${appointment.id} confirmed for ${patient.name}`);
+                    } else if (buttonText === 'Reprogramar') {
+                        await supabase
+                            .from('appointments')
+                            .update({ status: 'needs_reschedule' })
+                            .eq('id', appointment.id);
+
+                        await sendWhatsAppTextMessage(
+                            from,
+                            `ℹ️ Entendido ${patient.name}. Nuestra secretaria se pondrá en contacto contigo para reprogramar tu cita.`,
+                            creds
+                        );
+                        console.log(`[WEBHOOK] Appointment ${appointment.id} marked for reschedule`);
+                    }
+                } else {
+                    console.warn(`[WEBHOOK] No upcoming appointment found for patient ${patient.id}`);
+                }
+            } else {
+                console.warn(`[WEBHOOK] No client found for phone ${from}`);
             }
         }
 
