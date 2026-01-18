@@ -197,8 +197,8 @@ export async function POST(req: NextRequest) {
                             timeZone: 'Europe/Madrid'
                         });
 
-                        // Trigger the AI agent with rescheduling context
-                        const rescheduleMessage = `Quiero reprogramar mi cita del ${dateStr} a las ${timeStr}. ¿Qué días y horarios tienen disponibles?`;
+                        // Trigger the AI agent with rescheduling context - agent should ask what day they want
+                        const rescheduleMessage = `[SISTEMA: El paciente quiere reprogramar su cita del ${dateStr} a las ${timeStr}. Pregúntale qué día y hora le viene mejor, usando el tú y siendo amable.]`;
 
                         console.log(`[WEBHOOK] Starting reschedule flow for ${patient.name}, appointment ${appointment.id}`);
 
