@@ -80,6 +80,11 @@ export async function GET() {
                             mapping: aiConfig?.whatsapp_templates?.mapping
                         };
 
+                        console.log(`[DEBUG] Tenant found:`, !!tenant);
+                        console.log(`[DEBUG] Template name:`, creds.templateName);
+                        console.log(`[DEBUG] Phone ID (first 6 chars):`, creds.phoneId?.substring(0, 6));
+                        console.log(`[DEBUG] Mapping:`, JSON.stringify(creds.mapping));
+
                         await sendAppointmentConfirmationTemplate(client.whatsapp_id, vars, creds);
 
                         // Update appointment status to 'confirmed' after sending reminder
