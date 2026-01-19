@@ -10,19 +10,22 @@ export async function GET() {
     try {
         console.log('⏰ Starting Reminder Job (Meta Platform Templates)...');
 
-        // 1. Calculate tomorrow's range
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const startOfDay = new Date(tomorrow.setHours(0, 0, 0, 0)).toISOString();
-        const endOfDay = new Date(tomorrow.setHours(23, 59, 59, 999)).toISOString();
+        // 1. Calculate the '24-hour' window
+        // We look for appointments starting between 23 and 25 hours from now
+        const now = new Date();
+        const startWindow = new Date(now.getTime() + 23 * 60 * 60 * 1000).toISOString();
+        const endWindow = new Date(now.getTime() + 25 * 60 * 60 * 1000).toISOString();
 
-        // 2. Fetch appointments for tomorrow
+        console.log(`Searching for appointments starting between ${startWindow} and ${endWindow}...`);
+
+        // 2. Fetch appointments in that window that haven't received a reminder
         const { data: appointments, error } = await supabaseAdmin
             .from('appointments')
             .select('*, clients(id, whatsapp_id, name)')
-            .gte('start_time', startOfDay)
-            .lte('start_time', endOfDay)
-            .eq('status', 'scheduled');
+            .gte('start_time', startWindow)
+            .lte('start_time', endWindow)
+            .eq('status', 'scheduled')
+            .eq('reminder_sent', false);
 
         if (error) throw error;
 
@@ -109,7 +112,18 @@ export async function GET() {
             results.push(...batchResults.filter(Boolean));
         }
 
-        // 4. Bulk Insert Logs
+        // 4. Bulk Update Flags & Logs
+        if (results.length > 0) {
+            const sentIds = results.filter(r => r.status === 'sent').map(r => r.id);
+            if (sentIds.length > 0) {
+                await supabaseAdmin
+                    .from('appointments')
+                    .update({ reminder_sent: true })
+                    .in('id', sentIds);
+                console.log(`Marked ${sentIds.length} appointments as reminder_sent.`);
+            }
+        }
+
         if (logsToInsert.length > 0) {
             const { error: logError } = await supabaseAdmin
                 .from('messages')
