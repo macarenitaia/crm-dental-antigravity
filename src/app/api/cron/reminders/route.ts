@@ -24,7 +24,7 @@ export async function GET() {
             .select('*, clients(id, whatsapp_id, name)')
             .gte('start_time', startWindow)
             .lte('start_time', endWindow)
-            .eq('status', 'scheduled')
+            .in('status', ['scheduled', 'rescheduled', 'confirmed']) // Include all active statuses
             .eq('reminder_sent', false);
 
         if (error) throw error;
