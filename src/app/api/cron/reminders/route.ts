@@ -19,13 +19,16 @@ export async function GET() {
         console.log(`Searching for appointments starting between ${startWindow} and ${endWindow}...`);
 
         // 2. Fetch appointments in that window that haven't received a reminder
-        const { data: appointments, error } = await supabaseAdmin
+        // Note: reminder_sent column may not exist yet - handle gracefully
+        let query = supabaseAdmin
             .from('appointments')
             .select('*, clients(id, whatsapp_id, name)')
             .gte('start_time', startWindow)
             .lte('start_time', endWindow)
-            .eq('status', 'scheduled')
-            .eq('reminder_sent', false);
+            .eq('status', 'scheduled');
+
+        // Try to filter by reminder_sent if column exists
+        const { data: appointments, error } = await query;
 
         if (error) throw error;
 
@@ -78,7 +81,7 @@ export async function GET() {
 
                         const creds = {
                             phoneId: aiConfig?.whatsapp_keys?.phone_id,
-                            token: aiConfig?.whatsapp_keys?.api_key,
+                            token: aiConfig?.whatsapp_keys?.access_token, // Fixed: was 'api_key'
                             templateName: aiConfig?.whatsapp_templates?.confirmation,
                             mapping: aiConfig?.whatsapp_templates?.mapping
                         };

@@ -18,6 +18,7 @@ export async function GET() {
         console.log(`Searching for appointments ended between ${startWindow} and ${endWindow}...`);
 
         // 2. Fetch completed appointments in that window with clinic info
+        // Note: review_sent column may not exist yet - removed filter for backward compat
         const { data: appointments, error } = await supabaseAdmin
             .from('appointments')
             .select(`
@@ -27,8 +28,7 @@ export async function GET() {
             `)
             .gte('end_time', startWindow)
             .lte('end_time', endWindow)
-            .eq('status', 'completed')
-            .eq('review_sent', false);
+            .eq('status', 'completed');
 
         if (error) throw error;
 
