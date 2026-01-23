@@ -11,10 +11,11 @@ export async function GET() {
         console.log('⏰ Starting Reminder Job (Meta Platform Templates)...');
 
         // 1. Calculate the '24-hour' window
-        // We look for appointments starting between 23 and 25 hours from now
+        // Wider window (20-28h) to ensure no appointments are missed
+        // Since we filter by reminder_sent=false, duplicates are avoided
         const now = new Date();
-        const startWindow = new Date(now.getTime() + 23 * 60 * 60 * 1000).toISOString();
-        const endWindow = new Date(now.getTime() + 25 * 60 * 60 * 1000).toISOString();
+        const startWindow = new Date(now.getTime() + 20 * 60 * 60 * 1000).toISOString();
+        const endWindow = new Date(now.getTime() + 28 * 60 * 60 * 1000).toISOString();
 
         console.log(`Searching for appointments starting between ${startWindow} and ${endWindow}...`);
 
