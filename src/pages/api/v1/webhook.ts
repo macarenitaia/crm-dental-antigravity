@@ -79,15 +79,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 const from = message.from;
                 const text = message.text.body;
 
-                // Log that we're starting agent processing
-                await supabase.from('webhook_logs').insert({
-                    method: 'POST_AGENT_START',
-                    body: { from, text, timestamp: new Date().toISOString() }
-                });
+                // Match tenant by phone_number_id
+                const phoneNumberId = value?.metadata?.phone_number_id;
+                let tenantId: string | null = null;
+                if (phoneNumberId) {
+                    const { data: tenants } = await supabase
+                        .from('tenants')
+                        .select('id, ai_config')
+                        .eq('active', true);
+                    const matchingTenant = tenants?.find(t =>
+                        t.ai_config?.whatsapp_keys?.phone_id === phoneNumberId
+                    );
+                    if (matchingTenant) tenantId = matchingTenant.id;
+                }
 
                 try {
-                    // CRITICAL: Must await here! Vercel kills background processes
-                    const agentResponse = await processUserMessage(from, text);
+                    const agentResponse = await processUserMessage(from, text, undefined, tenantId);
 
                     // Log successful response
                     await supabase.from('webhook_logs').insert({
