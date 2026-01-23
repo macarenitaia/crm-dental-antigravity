@@ -10,9 +10,14 @@ export async function GET() {
     try {
         console.log('⏰ Starting Reminder Job (Meta Platform Templates)...');
 
+        // Log start to database for observability
+        await supabaseAdmin.from('webhook_logs').insert({
+            method: 'CRON_REMINDERS_START',
+            url: '/api/cron/reminders',
+            body: { timestamp: new Date().toISOString() }
+        });
+
         // 1. Calculate the '24-hour' window
-        // Wider window (20-28h) to ensure no appointments are missed
-        // Since we filter by reminder_sent=false, duplicates are avoided
         const now = new Date();
         const startWindow = new Date(now.getTime() + 20 * 60 * 60 * 1000).toISOString();
         const endWindow = new Date(now.getTime() + 28 * 60 * 60 * 1000).toISOString();
@@ -25,10 +30,17 @@ export async function GET() {
             .select('*, clients(id, whatsapp_id, name)')
             .gte('start_time', startWindow)
             .lte('start_time', endWindow)
-            .in('status', ['scheduled', 'rescheduled', 'confirmed']) // Include all active statuses
+            .in('status', ['scheduled', 'rescheduled', 'confirmed'])
             .eq('reminder_sent', false);
 
-        if (error) throw error;
+        if (error) {
+            await supabaseAdmin.from('webhook_logs').insert({
+                method: 'CRON_REMINDERS_ERROR',
+                error: error.message,
+                body: { step: 'FETCHING_APPOINTMENTS' }
+            });
+            throw error;
+        }
 
         if (!appointments || appointments.length === 0) {
             console.log('No appointments to remind.');
@@ -37,7 +49,7 @@ export async function GET() {
 
         console.log(`Found ${appointments.length} appointments for tomorrow.`);
 
-        // 3. Process in batches to control concurrency
+        // 3. Process in batches
         const BATCH_SIZE = 20;
         const results = [];
         const logsToInsert: Partial<Message>[] = [];
@@ -46,9 +58,8 @@ export async function GET() {
             const batch = appointments.slice(i, i + BATCH_SIZE);
 
             const batchPromises = batch.map(async (app) => {
-                const client = app.clients as any; // Temporary cast for joined data until better Supabase types
+                const client = app.clients as any;
                 if (client && client.whatsapp_id) {
-                    // Fetch Tenant Config for THIS appointment
                     const { data: tenant } = await supabaseAdmin
                         .from('tenants')
                         .select('ai_config')
@@ -77,16 +88,19 @@ export async function GET() {
                             time: timeStr
                         };
 
+                        // Resilient token detection
+                        const token = aiConfig?.whatsapp_keys?.access_token || aiConfig?.whatsapp_keys?.api_key;
+
                         const creds = {
                             phoneId: aiConfig?.whatsapp_keys?.phone_id,
-                            token: aiConfig?.whatsapp_keys?.access_token, // Fixed: was 'api_key'
+                            token: token,
                             templateName: aiConfig?.whatsapp_templates?.confirmation,
                             mapping: aiConfig?.whatsapp_templates?.mapping
                         };
 
                         await sendAppointmentConfirmationTemplate(client.whatsapp_id, vars, creds);
 
-                        // Update appointment status to 'confirmed' after sending reminder
+                        // Update appointment status to 'confirmed'
                         await supabaseAdmin
                             .from('appointments')
                             .update({ status: 'confirmed' })
@@ -99,11 +113,16 @@ export async function GET() {
                             role: 'assistant',
                             content: `[RECORDATORIO AUTOMÁTICO] ${logMessage}`,
                             created_at: new Date().toISOString(),
-                            cliente_id: app.tenant_id || app.cliente_id // ✅ Include tenant!
+                            cliente_id: app.tenant_id || app.cliente_id
                         });
                         return { client: client.name, status: 'sent', id: app.id };
                     } catch (err: any) {
                         console.error(`Failed to send to app ${app.id}:`, err);
+                        await supabaseAdmin.from('webhook_logs').insert({
+                            method: 'CRON_REMINDERS_SEND_ERROR',
+                            error: err.message,
+                            body: { app_id: app.id, client: client.name }
+                        });
                         return { client: client.name, status: 'failed', error: err.message };
                     }
                 }
@@ -114,7 +133,7 @@ export async function GET() {
             results.push(...batchResults.filter(Boolean));
         }
 
-        // 4. Bulk Update Flags & Logs
+        // 4. Update reminder_sent flag
         if (results.length > 0) {
             const sentIds = results.filter(r => r.status === 'sent').map(r => r.id);
             if (sentIds.length > 0) {
@@ -122,24 +141,32 @@ export async function GET() {
                     .from('appointments')
                     .update({ reminder_sent: true })
                     .in('id', sentIds);
-                console.log(`Marked ${sentIds.length} appointments as reminder_sent.`);
             }
         }
 
         if (logsToInsert.length > 0) {
-            const { error: logError } = await supabaseAdmin
-                .from('messages')
-                .insert(logsToInsert);
-
-            if (logError) console.error('Error batch inserting logs:', logError);
-            else console.log(`Logged ${logsToInsert.length} messages.`);
+            await supabaseAdmin.from('messages').insert(logsToInsert);
         }
+
+        // Final result log
+        await supabaseAdmin.from('webhook_logs').insert({
+            method: 'CRON_REMINDERS_SUCCESS',
+            body: { processed: results.length, details: results }
+        });
 
         return NextResponse.json({ success: true, processed: results.length, details: results });
 
     } catch (error: any) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         console.error('Reminder Error:', errorMessage);
+
+        try {
+            await supabaseAdmin.from('webhook_logs').insert({
+                method: 'CRON_REMINDERS_FATAL_ERROR',
+                error: errorMessage
+            });
+        } catch (e) { /* silent */ }
+
         return NextResponse.json({ error: errorMessage }, { status: 500 });
     }
 }
