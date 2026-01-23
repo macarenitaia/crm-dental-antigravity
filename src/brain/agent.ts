@@ -214,13 +214,16 @@ export async function processUserMessage(userId: string, message: string, profil
             content: msg.content
         })) : [];
 
-        // Save incoming user message with tenant!
-        await supabaseAdmin.from('messages').insert({
-            client_id: client.id,
-            role: 'user',
-            content: message,
-            cliente_id: clientTenantId // ✅ Include tenant!
-        });
+        await Promise.all([
+            supabaseAdmin.from('messages').insert({
+                client_id: client.id,
+                role: 'user',
+                content: message,
+                cliente_id: clientTenantId // ✅ Include tenant!
+            }),
+            supabaseAdmin.from('clients').update({ updated_at: new Date().toISOString() }).eq('id', client.id)
+        ]);
+
 
         // Prepare message list
         let messages: ChatCompletionMessageParam[] = [
@@ -330,12 +333,16 @@ export async function processUserMessage(userId: string, message: string, profil
 
             await sendWhatsAppMessage(userId, finalResponseText, whatsappCreds);
             await logStep('WHATSAPP_SENT_OK');
-            await supabaseAdmin.from('messages').insert({
-                client_id: client.id,
-                role: 'assistant',
-                content: finalResponseText,
-                cliente_id: clientTenantId // ✅ Include tenant!
-            });
+            await Promise.all([
+                supabaseAdmin.from('messages').insert({
+                    client_id: client.id,
+                    role: 'assistant',
+                    content: finalResponseText,
+                    cliente_id: clientTenantId // ✅ Include tenant!
+                }),
+                supabaseAdmin.from('clients').update({ updated_at: new Date().toISOString() }).eq('id', client.id)
+            ]);
+
             return finalResponseText;
         }
     } catch (error: any) {

@@ -137,7 +137,8 @@ const ClientProfile = ({ client: initialClient, onClose }: ClientProfileProps) =
                         <div className="w-full lg:w-[350px] shrink-0 sticky top-0">
                             <ClientSummary
                                 client={client}
-                                lastAppointment={appointments[0] ? new Date(appointments[0].start_time) : null}
+                                lastAppointment={appointments.length > 0 ? new Date([...appointments].sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime())[0].start_time) : null}
+
                                 nextAppointment={null}
                                 totalTreatments={treatments.length}
                             />

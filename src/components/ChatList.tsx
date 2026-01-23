@@ -22,7 +22,8 @@ const ChatList = ({ onSelectClient }: { onSelectClient: (client: Client) => void
                 .from('clients')
                 .select('*')
                 .eq('cliente_id', tenantId) // Filter by tenant!
-                .order('created_at', { ascending: false });
+                .order('updated_at', { ascending: false });
+
             if (data) {
                 setClients(data);
                 setFilteredClients(data);
