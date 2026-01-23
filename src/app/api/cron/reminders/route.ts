@@ -98,7 +98,8 @@ export async function GET() {
                             client_id: client.id,
                             role: 'assistant',
                             content: `[RECORDATORIO AUTOMÁTICO] ${logMessage}`,
-                            created_at: new Date().toISOString()
+                            created_at: new Date().toISOString(),
+                            cliente_id: app.tenant_id || app.cliente_id // ✅ Include tenant!
                         });
                         return { client: client.name, status: 'sent', id: app.id };
                     } catch (err: any) {

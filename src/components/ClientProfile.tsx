@@ -157,29 +157,42 @@ const ClientProfile = ({ client: initialClient, onClose }: ClientProfileProps) =
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div className="p-6 bg-emerald-50/50 rounded-3xl border border-emerald-100 group hover:bg-emerald-50 transition-colors">
-                                                <h4 className="text-sm font-bold text-emerald-700 uppercase tracking-widest mb-4">Próxima Visita</h4>
+                                                <h4 className="text-sm font-bold text-emerald-700 uppercase tracking-widest mb-4">Visitas</h4>
                                                 {(() => {
                                                     const now = new Date();
                                                     const upcoming = appointments
                                                         .filter(a => new Date(a.start_time) > now && a.status !== 'cancelled')
                                                         .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())[0];
-                                                    if (upcoming) {
-                                                        const date = new Date(upcoming.start_time);
-                                                        return (
-                                                            <div>
-                                                                <p className="text-gray-900 font-bold text-lg">
-                                                                    {date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
-                                                                </p>
-                                                                <p className="text-emerald-600 font-medium">
-                                                                    {date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
-                                                                </p>
-                                                                {(upcoming as any).reason && (
-                                                                    <p className="text-gray-500 text-sm mt-1">Motivo: {(upcoming as any).reason}</p>
-                                                                )}
-                                                            </div>
-                                                        );
-                                                    }
-                                                    return <p className="text-gray-500 text-sm">No hay citas programadas próximamente.</p>;
+
+                                                    const past = appointments
+                                                        .filter(a => new Date(a.start_time) <= now && a.status !== 'cancelled')
+                                                        .sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime())[0];
+
+                                                    return (
+                                                        <div className="space-y-4">
+                                                            {upcoming ? (
+                                                                <div>
+                                                                    <p className="text-xs font-bold text-emerald-700/60 uppercase tracking-widest mb-1">Próxima</p>
+                                                                    <p className="text-gray-900 font-bold text-lg">
+                                                                        {new Date(upcoming.start_time).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+                                                                    </p>
+                                                                    <p className="text-emerald-600 font-medium">
+                                                                        {new Date(upcoming.start_time).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                                                                    </p>
+                                                                </div>
+                                                            ) : (
+                                                                <p className="text-gray-500 text-sm">Próxima: Ninguna</p>
+                                                            )}
+                                                            {past && (
+                                                                <div className="pt-2 border-t border-emerald-100/50">
+                                                                    <p className="text-xs font-bold text-emerald-700/60 uppercase tracking-widest mb-1">Última</p>
+                                                                    <p className="text-gray-600 text-sm font-medium">
+                                                                        {new Date(past.start_time).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                                    </p>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
                                                 })()}
                                             </div>
                                             <div className="p-6 bg-blue-50/50 rounded-3xl border border-blue-100 group hover:bg-blue-50 transition-colors">

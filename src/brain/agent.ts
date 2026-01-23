@@ -27,26 +27,21 @@ ROL: Eres Sofía, la secretaria de una clínica dental. Tu trabajo es CERRAR CIT
 1. **FECHAS**: HOY es ${getMadridDate()}. "Mañana" = día siguiente. NO inventes fechas pasadas. Si el usuario dice "mañana a las 12", calcula la fecha real.
 
 2. **SI EL USUARIO DA UNA HORA CONCRETA** (ej: "a las 12", "a las 10:00"):
-   - VERIFICA SOLO ese horario con check_calendar_availability
-   - Si está libre: CONFIRMA y procede a agendar
-   - Si está ocupado: Ofrece la hora más cercana disponible
-   - **NUNCA listes todas las horas disponibles si ya te dieron una**
+   - SI EL USUARIO DA UNA HORA CONCRETA: VERIFICA ESA HORA. Si está libre, di "Perfecto, te agendo para mañana a las XX:XX" y EJECUTA book_appointment de inmediato. 
+   - **PROHIBIDO** preguntar "¿te viene bien?" si el usuario ya te dijo esa hora. ACÉPTALO y agenda.
+   - **MÁXIMO 2 OPCIONES**: Si te pide disponibilidad, ofrece solo 2 huecos (ej: "Mañana a las 10:00 o a las 16:00, ¿te va bien alguno?"). NUNCA listes más de dos.
 
-3. **FLUJO RÁPIDO DE RESERVA**:
-   - Usuario da: día + hora → Verifica disponibilidad de ESA hora
-   - Tienes sus datos (nombre + email) → Ejecuta book_appointment INMEDIATAMENTE
-   - NO preguntes lo mismo dos veces. NO pidas confirmación innecesaria.
+3. **FLUJO DE CIERRE**:
+   - Día + Hora + Motivo → AGENDA YA. No añadas pasos extra.
+   - Si el usuario dice "A las 12", "Si", o "Perfecto", CIERRA la cita usando book_appointment.
 
-4. **DATOS REQUERIDOS** (solo si no los tienes):
-   - Nombre completo (nombre y apellidos) - NO inventes, NO uses perfil de WhatsApp
-   - Email
-   - Motivo de visita
-   - El teléfono YA LO TENEMOS automáticamente
+4. **FECHAS (ZONA MADRID)**:
+   - HOY ES: ${getMadridDate()}.
+   - Mañana es: ${new Date(new Date().getTime() + 24 * 60 * 60 * 1000).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', timeZone: 'Europe/Madrid' })}.
+   - Si el usuario te corrige la fecha, confía en él, pero no propongas días pasados.
 
-5. **ANTI-ALUCINACIÓN**:
-   - Si el usuario corrige algo, ACÉPTALO sin discutir
-   - Si dice "hoy es día X", confía en él pero verifica con la fecha del sistema
-   - NO menciones citas en fechas pasadas como opciones
+5. **ANTI-BUCLE**:
+   - Si detectas que el usuario repite la hora, es que el sistema NO la ha guardado o estás preguntando de más. USA LA HERRAMIENTA DE AGENDAR.
 
 ESTILO:
 - Tuteo cercano, profesional
@@ -131,20 +126,30 @@ export async function processUserMessage(userId: string, message: string, profil
         // Get tenant ID from client (for existing clients that have one)
         const clientTenantId = (client as any).cliente_id || effectiveTenantId;
 
-        // 2a. Fetch Clinics for THIS TENANT only
-        const { data: clinics } = await supabaseAdmin
-            .from('clinics')
-            .select('id, name, address')
-            .eq('cliente_id', clientTenantId); // ✅ Filter by tenant!
+        // 2. Parallelized Fetching for Optimization (Latency reduction)
+        await logStep('PARALLEL_FETCH_START');
+        const [clinicsRes, tenantConfigRes, upcomingApptsRes, historyRes] = await Promise.all([
+            supabaseAdmin.from('clinics').select('id, name, address').eq('cliente_id', clientTenantId),
+            supabaseAdmin.from('tenants').select('ai_config').eq('id', clientTenantId).single(),
+            supabaseAdmin.from('appointments').select('id, start_time, end_time, status, clinic_id')
+                .eq('client_id', client.id)
+                .gte('start_time', now)
+                .neq('status', 'cancelled')
+                .order('start_time', { ascending: true })
+                .limit(5),
+            supabaseAdmin.from('messages').select('role, content')
+                .eq('client_id', client.id)
+                .order('created_at', { ascending: false })
+                .limit(10)
+        ]);
+
+        const clinics = clinicsRes.data;
+        const tenantConfig = tenantConfigRes.data;
+        const upcomingAppointments = upcomingApptsRes.data;
+        const history = historyRes.data;
 
         // 2c. Load tenant's custom AI config for personalization
         let customUserPrompt = '';
-        const { data: tenantConfig } = await supabaseAdmin
-            .from('tenants')
-            .select('ai_config')
-            .eq('id', clientTenantId)
-            .single();
-
         if (tenantConfig?.ai_config?.user_prompt) {
             customUserPrompt = `\n\n🎯 INSTRUCCIONES ADICIONALES DEL CLIENTE (PERSONALIZADAS):\n${tenantConfig.ai_config.user_prompt}`;
             console.log(`[AGENT] Using custom user_prompt from tenant config`);
@@ -161,17 +166,6 @@ export async function processUserMessage(userId: string, message: string, profil
             `\nPREFERENCIA DEL CLIENTE: ${preferredClinicName}.\n` +
             `REGLA DE PREFERENCIA: Si la preferencia NO es "Ninguna", ASUME esa sede por defecto salvo que el usuario diga lo contrario. Evita preguntar.`
             : "\n\n(No hay clínicas configuradas, asume sede única)";
-
-        // 2b. Fetch upcoming appointments for this client
-        const now = new Date().toISOString();
-        const { data: upcomingAppointments } = await supabaseAdmin
-            .from('appointments')
-            .select('id, start_time, end_time, status, clinic_id')
-            .eq('client_id', client.id)
-            .gte('start_time', now)
-            .neq('status', 'cancelled')
-            .order('start_time', { ascending: true })
-            .limit(5);
 
         // Build client context for AI
         const clientName = client.name && !client.name.startsWith('Paciente ') ? client.name : null;
@@ -214,14 +208,6 @@ export async function processUserMessage(userId: string, message: string, profil
         } else {
             clientContext += '\n\n📅 Este paciente NO tiene citas próximas.';
         }
-
-        // 2b. Load History for this client only
-        const { data: history } = await supabaseAdmin
-            .from('messages')
-            .select('role, content')
-            .eq('client_id', client.id)
-            .order('created_at', { ascending: false })
-            .limit(10);
 
         const chatHistory: ChatCompletionMessageParam[] = history ? history.reverse().map((msg: any) => ({
             role: msg.role === 'client' ? 'user' : (msg.role === 'model' ? 'assistant' : 'assistant'),

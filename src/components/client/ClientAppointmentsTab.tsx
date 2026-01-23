@@ -48,12 +48,22 @@ export const ClientAppointmentsTab: React.FC<ClientAppointmentsTabProps> = ({ ap
                 <div className="grid gap-4">
                     {[...appointments]
                         .sort((a, b) => {
-                            // Show active appointments (non-cancelled) first
-                            const aActive = a.status !== 'cancelled' ? 0 : 1;
-                            const bActive = b.status !== 'cancelled' ? 0 : 1;
-                            if (aActive !== bActive) return aActive - bActive;
-                            // Then sort by date ascending
-                            return new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
+                            const now = new Date().getTime();
+                            const aTime = new Date(a.start_time).getTime();
+                            const bTime = new Date(b.start_time).getTime();
+
+                            const aIsFuture = aTime >= now && a.status !== 'cancelled';
+                            const bIsFuture = bTime >= now && b.status !== 'cancelled';
+
+                            // 1. Future appointments first
+                            if (aIsFuture && !bIsFuture) return -1;
+                            if (!aIsFuture && bIsFuture) return 1;
+
+                            // 2. Both are future: sort ASC (closest first)
+                            if (aIsFuture && bIsFuture) return aTime - bTime;
+
+                            // 3. Both are past: sort DESC (most recent first)
+                            return bTime - aTime;
                         })
                         .map(app => (
                             <div key={app.id} className="bg-white p-4 rounded-xl border border-gray-100 hover:shadow-md transition-shadow flex items-center justify-between group">
