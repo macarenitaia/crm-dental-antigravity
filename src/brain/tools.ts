@@ -5,7 +5,7 @@ export const crmTools: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "check_calendar_availability",
-            description: "Checks for available appointment slots for a given date. Use this before booking to ensure the slot is free.",
+            description: "Checks if a specific time slot is available on a given date. Returns all available slots for that day. IMPORTANT: If user requested a specific time (e.g. 12:00), check if it's in the returned slots. Only offer alternatives if their requested time is busy.",
             parameters: {
                 type: "object",
                 properties: {
