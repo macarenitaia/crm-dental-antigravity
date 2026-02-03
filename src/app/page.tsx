@@ -24,6 +24,45 @@ export default function Dashboard() {
   useEffect(() => {
     if (tenantId) {
       fetchStats();
+
+      // Subscribe to real-time changes
+      const channel = supabase
+        .channel('dashboard-realtime')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'appointments',
+            filter: `cliente_id=eq.${tenantId}`
+          },
+          () => fetchStats()
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'clients',
+            filter: `cliente_id=eq.${tenantId}`
+          },
+          () => fetchStats()
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'patient_treatments',
+            filter: `cliente_id=eq.${tenantId}`
+          },
+          () => fetchStats()
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
     }
   }, [tenantId, period]);
 
@@ -260,8 +299,8 @@ export default function Dashboard() {
                         <td className="py-4 text-sm text-gray-600">{(appt.clinics as any)?.name || 'Sede Principal'}</td>
                         <td className="py-4">
                           <span className={`px-2 py-1 text-[10px] font-bold uppercase rounded-full ${appt.status === 'confirmed' ? 'bg-emerald-100 text-emerald-700' :
-                              appt.status === 'rescheduled' ? 'bg-orange-100 text-orange-700' :
-                                'bg-blue-100 text-blue-700'
+                            appt.status === 'rescheduled' ? 'bg-orange-100 text-orange-700' :
+                              'bg-blue-100 text-blue-700'
                             }`}>
                             {appt.status === 'confirmed' ? 'Confirmada' :
                               appt.status === 'rescheduled' ? 'Re-agendada' : 'Pendiente'}
