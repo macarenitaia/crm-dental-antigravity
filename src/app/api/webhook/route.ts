@@ -3,6 +3,8 @@ import { NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { processUserMessage } from '@/brain/agent';
 
+export const dynamic = 'force-dynamic';
+
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
 const getSupabaseAdmin = () => supabaseAdmin;

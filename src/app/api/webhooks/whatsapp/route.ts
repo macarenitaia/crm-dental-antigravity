@@ -2,6 +2,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+
+export const dynamic = 'force-dynamic';
 import { sendWhatsAppTextMessage } from '@/lib/whatsapp-service';
 
 const APP_SECRET = process.env.WHATSAPP_APP_SECRET || '';
