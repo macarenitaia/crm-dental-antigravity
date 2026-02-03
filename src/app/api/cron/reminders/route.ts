@@ -135,7 +135,9 @@ export async function GET() {
 
         // 4. Update reminder_sent flag
         if (results.length > 0) {
-            const sentIds = results.filter(r => r.status === 'sent').map(r => r.id);
+            const sentIds = results
+                .filter((r: any) => r?.status === 'sent')
+                .map((r: any) => r.id);
             if (sentIds.length > 0) {
                 await supabaseAdmin
                     .from('appointments')
