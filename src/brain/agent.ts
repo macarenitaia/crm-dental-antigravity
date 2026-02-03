@@ -131,12 +131,15 @@ export async function processUserMessage(userId: string, message: string, profil
         const [clinicsRes, tenantConfigRes, upcomingApptsRes, historyRes] = await Promise.all([
             supabaseAdmin.from('clinics').select('id, name, address').eq('cliente_id', clientTenantId),
             supabaseAdmin.from('tenants').select('ai_config').eq('id', clientTenantId).single(),
-            supabaseAdmin.from('appointments').select('id, start_time, end_time, status, clinic_id')
-                .eq('client_id', client.id)
-                .gte('start_time', now)
-                .neq('status', 'cancelled')
-                .order('start_time', { ascending: true })
-                .limit(5),
+            (() => {
+                const now = new Date().toISOString();
+                return supabaseAdmin.from('appointments').select('id, start_time, end_time, status, clinic_id')
+                    .eq('client_id', client.id)
+                    .gte('start_time', now)
+                    .neq('status', 'cancelled')
+                    .order('start_time', { ascending: true })
+                    .limit(5);
+            })(),
             supabaseAdmin.from('messages').select('role, content')
                 .eq('client_id', client.id)
                 .order('created_at', { ascending: false })
