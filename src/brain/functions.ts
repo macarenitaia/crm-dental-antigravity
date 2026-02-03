@@ -96,6 +96,31 @@ export async function bookAppointment(clientId: string, startTime: string, reaso
 
     console.log(`Booking: Input=${startTime} -> Clinic=${clinicId || 'None'} -> Tenant=${tenantId || 'None'} -> UTC=${start.toISOString()}`);
 
+    // Safety Check: Check if this client already has an appointment on this day
+    const dayStart = new Date(start);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(start);
+    dayEnd.setHours(23, 59, 59, 999);
+
+    const { data: existingAppt } = await supabaseAdmin
+        .from('appointments')
+        .select('id, start_time')
+        .eq('client_id', clientId)
+        .gte('start_time', dayStart.toISOString())
+        .lte('start_time', dayEnd.toISOString())
+        .neq('status', 'cancelled')
+        .limit(1);
+
+    if (existingAppt && existingAppt.length > 0) {
+        const existingInfo = new Date(existingAppt[0].start_time).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' });
+        console.warn(`Client ${clientId} already has an appointment at ${existingInfo} on this day.`);
+        return {
+            error: `Ya tienes una cita agendada para ese día a las ${existingInfo}.`,
+            already_has_appointment: true,
+            existing_time: existingInfo
+        };
+    }
+
     // Auto-assign doctor if only one exists for this clinic
     let doctorId: string | null = null;
     if (clinicId && tenantId) {
