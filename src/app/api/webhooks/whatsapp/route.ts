@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 import { sendWhatsAppTextMessage } from '@/lib/whatsapp-service';
 
 const APP_SECRET = process.env.WHATSAPP_APP_SECRET || '';
-const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || 'antigravity_secret_token';
+const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || '';
 
 /**
  * Validates Meta's signature

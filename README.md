@@ -1,36 +1,56 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Dental CRM - AI Agent Architecture
 
-## Getting Started
+Este es un sistema de CRM dental avanzado con un agente de IA integrado para la gestión de citas y atención al paciente a través de WhatsApp.
 
-First, run the development server:
+## 🚀 Configuración Rápida
+
+### 1. Requisitos Previos
+
+- Node.js 18+
+- Cuenta en Supabase (Base de datos y Auth)
+- Cuenta de Desarrollador en Meta (WhatsApp Cloud API)
+- API Keys de OpenAI o Gemini
+
+### 2. Variables de Entorno
+
+Este proyecto utiliza variables de entorno para gestionar claves de API y secretos. **Nunca** subas archivos `.env` al repositorio.
+
+1. Copia el archivo de ejemplo:
+
+   ```bash
+   cp .env.example .env.local
+   ```
+
+2. Abre `.env.local` y rellena las claves con tus credenciales de Supabase, Meta y proveedores de IA.
+
+### 3. Instalación e Inicio
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🛡️ Seguridad y Privacidad
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Para mantener el repositorio público seguro:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Archivos Ignorados**: El archivo `.gitignore` está configurado para excluir todos los archivos `.env*`.
+- **Anonimización**: El código fuente utiliza exclusivamente `process.env` para acceder a secretos.
+- **Validación de Webhooks**: Se utiliza `WHATSAPP_APP_SECRET` para firmar y validar todas las peticiones entrantes de Meta.
 
-## Learn More
+## 📁 Estructura del Proyecto
 
-To learn more about Next.js, take a look at the following resources:
+- `src/app`: Rutas de la aplicación (Next.js App Router).
+- `src/components`: Componentes de UI reutilizables.
+- `src/lib`: Clientes de API y lógica de servicios (Supabase, WhatsApp, Gemini).
+- `scripts/`: Utilidades para migración y pruebas de base de datos.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🛠️ Stack Tecnológico
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **Frontend**: Next.js, Tailwind CSS, Lucide React.
+- **Backend**: Next.js API Routes, Supabase (PostgreSQL).
+- **IA**: Google Gemini 2.0 / OpenAI GPT-4o.
+- **Canales**: WhatsApp Cloud API.
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+Generado por **Antigravity Architect**.
