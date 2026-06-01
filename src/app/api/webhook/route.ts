@@ -93,10 +93,20 @@ export async function POST(req: NextRequest) {
                     .select('id, ai_config')
                     .eq('active', true);
 
-                // Find tenant whose ai_config.whatsapp_keys.phone_id matches
-                const matchingTenant = tenants?.find(t =>
+                // Find tenant(s) whose ai_config.whatsapp_keys.phone_id matches.
+                // Si varios tenants comparten el mismo número (config duplicada), el enrutado
+                // debe ser DETERMINISTA: preferimos DEMO_TENANT_ID (o el HQ por defecto),
+                // y si no, el primero por orden estable de id.
+                const matches = (tenants || []).filter(t =>
                     t.ai_config?.whatsapp_keys?.phone_id === phoneNumberId
                 );
+                const preferredTenantId = process.env.DEMO_TENANT_ID || 'ffffffff-ffff-ffff-ffff-ffffffffffff';
+                const matchingTenant = matches.find(t => t.id === preferredTenantId)
+                    || matches.sort((a, b) => (a.id < b.id ? -1 : 1))[0];
+
+                if (matches.length > 1) {
+                    console.warn(`[WEBHOOK] ${matches.length} tenants comparten phone_id ${phoneNumberId}; enrutando a ${matchingTenant?.id}`);
+                }
 
                 if (matchingTenant) {
                     tenantId = matchingTenant.id;

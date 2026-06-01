@@ -181,15 +181,61 @@ export async function bookAppointment(clientId: string, startTime: string, reaso
     return { success: true, appointment: data };
 }
 
+/**
+ * Crea/actualiza los datos de la ficha del paciente (no agenda).
+ * Solo escribe los campos provistos; infiere género desde el nombre si no se indica.
+ */
+export async function updatePatientInfo(
+    clientId: string,
+    fields: {
+        full_name?: string;
+        email?: string;
+        date_of_birth?: string;
+        dni?: string;
+        address?: string;
+        gender?: string;
+        notes?: string;
+    }
+) {
+    const updateData: any = {};
+    if (fields.full_name) updateData.name = fields.full_name;
+    if (fields.email) updateData.email = fields.email;
+    if (fields.date_of_birth) updateData.date_of_birth = fields.date_of_birth;
+    if (fields.dni) updateData.dni = fields.dni;
+    if (fields.address) updateData.address = fields.address;
+    if (fields.notes) updateData.notes = fields.notes;
+
+    // Género: usa el provisto o lo infiere del nombre
+    if (fields.gender) {
+        updateData.gender = fields.gender;
+    } else if (fields.full_name) {
+        const inferred = inferGender(fields.full_name);
+        if (inferred) updateData.gender = inferred;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+        return { success: false, error: "No se proporcionó ningún dato para actualizar." };
+    }
+
+    updateData.updated_at = new Date().toISOString();
+
+    const { error } = await supabaseAdmin
+        .from('clients')
+        .update(updateData)
+        .eq('id', clientId);
+
+    if (error) {
+        return { success: false, error: `No se pudo actualizar la ficha: ${error.message}` };
+    }
+
+    return { success: true, updated_fields: Object.keys(updateData).filter(k => k !== 'updated_at') };
+}
+
 export async function searchKnowledgeBase(query: string, tenantId?: string) {
     try {
         console.log(`RAG Search: "${query.slice(0, 50)}..." for tenant ${tenantId || 'All'}`);
 
-        // Generate embedding for query
-        const embeddingResult = await embeddingModel.embedContent(query);
-        const vector = embeddingResult.embedding.values;
-
-        // If we have a tenantId, filter by it
+        // If we have a tenantId, filter by it (NO requiere embedding -> funciona sin Gemini)
         if (tenantId) {
             // Direct query with tenant filter
             const { data, error } = await supabaseAdmin
@@ -215,7 +261,10 @@ export async function searchKnowledgeBase(query: string, tenantId?: string) {
             };
         }
 
-        // Fallback to RPC for all tenants (legacy)
+        // Fallback to RPC for all tenants (legacy) -> aquí sí necesitamos el embedding
+        const embeddingResult = await embeddingModel.embedContent(query);
+        const vector = embeddingResult.embedding.values;
+
         const { data, error } = await supabaseAdmin.rpc('match_knowledge', {
             query_embedding: vector,
             match_threshold: 0.5,

@@ -117,5 +117,46 @@ export const crmTools: ChatCompletionTool[] = [
                 required: ["original_date", "new_start_time"]
             }
         }
+    },
+    {
+        type: "function",
+        function: {
+            name: "update_patient_info",
+            description: "Crea o actualiza los datos de la ficha del paciente cuando los menciona en la conversación (apellidos, email, fecha de nacimiento, DNI, dirección, notas clínicas relevantes). Úsalo en cuanto el paciente dé un dato nuevo, SIN agobiar pidiéndolos todos de golpe. No es necesario para agendar; sirve para mantener la ficha completa.",
+            parameters: {
+                type: "object",
+                properties: {
+                    full_name: {
+                        type: "string",
+                        description: "Nombre y apellidos completos del paciente."
+                    },
+                    email: {
+                        type: "string",
+                        description: "Email del paciente."
+                    },
+                    date_of_birth: {
+                        type: "string",
+                        description: "Fecha de nacimiento en formato YYYY-MM-DD."
+                    },
+                    dni: {
+                        type: "string",
+                        description: "DNI/NIE del paciente."
+                    },
+                    address: {
+                        type: "string",
+                        description: "Dirección postal del paciente."
+                    },
+                    gender: {
+                        type: "string",
+                        description: "Género del paciente ('Masculino' o 'Femenino')."
+                    },
+                    notes: {
+                        type: "string",
+                        description: "Notas clínicas o de interés (alergias, motivo, preferencias, etc.)."
+                    }
+                },
+                required: []
+            }
+        }
     }
 ];

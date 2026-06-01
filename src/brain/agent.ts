@@ -3,7 +3,7 @@ import { openai } from '@/lib/openai';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { sendWhatsAppMessage } from '@/lib/whatsapp';
 import { crmTools } from './tools';
-import { checkCalendarAvailability, bookAppointment, searchKnowledgeBase, cancel_appointment, reschedule_appointment } from './functions';
+import { checkCalendarAvailability, bookAppointment, searchKnowledgeBase, cancel_appointment, reschedule_appointment, updatePatientInfo } from './functions';
 import { ChatCompletionMessageParam, ChatCompletionMessageToolCall } from 'openai/resources/chat/completions';
 
 // Get current date in Madrid timezone
@@ -39,6 +39,10 @@ ROL: Eres Sofía, la secretaria de una clínica dental. Tu trabajo es CERRAR CIT
 4. **FLUJO DE CIERRE**:
    - Día + Hora + Motivo → AGENDA YA.
    - Si el usuario dice "Si", "Vale" o "Perfecto" a una propuesta tuya de hora, cierra usando book_appointment.
+
+5. **FICHA DEL PACIENTE**:
+   - Cuando el paciente mencione datos suyos (apellidos, email, fecha de nacimiento, DNI, dirección, alergias o notas relevantes), regístralos con update_patient_info para mantener su ficha al día.
+   - Hazlo de forma natural y sin agobiar: NO pidas todos los datos de golpe ni bloquees la cita por ellos.
 
 ESTILO:
 - Tuteo cercano, profesional
@@ -302,6 +306,21 @@ export async function processUserMessage(userId: string, message: string, profil
                             finalClinicId,
                             clientTenantId
                         );
+                    } else if (toolCall.function.name === 'update_patient_info') {
+                        if (!client) throw new Error("Client logic failure");
+                        toolResult = await updatePatientInfo(client.id, {
+                            full_name: args.full_name,
+                            email: args.email,
+                            date_of_birth: args.date_of_birth,
+                            dni: args.dni,
+                            address: args.address,
+                            gender: args.gender,
+                            notes: args.notes
+                        });
+                        // Refleja el nombre nuevo en el contexto local para esta misma vuelta
+                        if ((toolResult as any)?.success && args.full_name) {
+                            (client as any).name = args.full_name;
+                        }
                     }
 
                     messages.push({
