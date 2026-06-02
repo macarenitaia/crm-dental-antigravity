@@ -39,7 +39,7 @@ Termina preguntando cuál le va mejor.
     console.log(`--- [AI] Generating proposal for ${patientName} using ${customPrompt ? 'CUSTOM' : 'DEFAULT'} prompt...`);
 
     const response = await openai.chat.completions.create({
-        model: "gpt-4o-2024-08-06",
+        model: "gpt-4o-mini",
         messages: [
             { role: "system", content: "Eres una secretaria de clínica dental experta en gestión de citas y persuasión amable." },
             { role: "user", content: finalPrompt }

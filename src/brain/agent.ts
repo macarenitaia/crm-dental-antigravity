@@ -245,7 +245,7 @@ export async function processUserMessage(userId: string, message: string, profil
 
         while (turns < MAX_TURNS) {
             const runner = await openai.chat.completions.create({
-                model: "gpt-4o",
+                model: "gpt-4o-mini",
                 messages: messages,
                 tools: crmTools,
                 tool_choice: "auto"
