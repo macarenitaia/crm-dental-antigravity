@@ -255,7 +255,7 @@ export async function processUserMessage(userId: string, message: string, profil
 
         while (turns < MAX_TURNS) {
             const runner = await openai.chat.completions.create({
-                model: "gpt-4o-mini",
+                model: "gpt-4o", // gpt-4o-mini "narra" reservas sin ejecutar la tool; 4o llama a las funciones de forma fiable
                 messages: messages,
                 tools: crmTools,
                 tool_choice: "auto"
