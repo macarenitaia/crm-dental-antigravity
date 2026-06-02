@@ -274,7 +274,10 @@ export async function processUserMessage(userId: string, message: string, profil
                         toolResult = await checkCalendarAvailability(args.date, clinicToCheck, clientTenantId);
                     } else if (toolCall.function.name === 'book_appointment') {
                         if (!client) throw new Error("Client logic failure");
-                        const finalClinicId = args.clinicId || (client as any).preferred_clinic_id;
+                        // Resuelve la clínica: la indicada, la preferida, o la única del tenant
+                        // (evita citas con clinic_id NULL que el calendario oculta al filtrar por sede).
+                        const singleClinicId = (clinics && clinics.length === 1) ? clinics[0].id : null;
+                        const finalClinicId = args.clinicId || (client as any).preferred_clinic_id || singleClinicId;
                         // Pass tenantId, fullName, email, and phone (userId) to bookAppointment!
                         toolResult = await bookAppointment(
                             client.id,
