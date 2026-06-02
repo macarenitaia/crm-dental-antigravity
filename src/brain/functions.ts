@@ -121,6 +121,32 @@ export async function bookAppointment(clientId: string, startTime: string, reaso
         };
     }
 
+    // Guardarraíl de COLISIÓN: ¿ese hueco ya lo tiene OTRO paciente en la misma sede?
+    // (appointments no tiene constraint único; esto evita el doble booking de forma fiable)
+    if (clinicId) {
+        const slotFrom = new Date(start.getTime() - 29 * 60000).toISOString();
+        const slotTo = new Date(start.getTime() + 29 * 60000).toISOString();
+        const { data: slotTaken } = await supabaseAdmin
+            .from('appointments')
+            .select('id, start_time')
+            .eq('clinic_id', clinicId)
+            .neq('client_id', clientId)
+            .neq('status', 'cancelled')
+            .gte('start_time', slotFrom)
+            .lte('start_time', slotTo)
+            .limit(1);
+
+        if (slotTaken && slotTaken.length > 0) {
+            const takenInfo = new Date(start).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' });
+            console.warn(`Slot collision at ${takenInfo} in clinic ${clinicId}.`);
+            return {
+                error: `Ese hueco de las ${takenInfo} ya está reservado por otro paciente. NO lo agendes; ofrece otra hora libre (usa check_calendar_availability).`,
+                slot_taken: true,
+                requested_time: takenInfo
+            };
+        }
+    }
+
     // Auto-assign doctor if only one exists for this clinic
     let doctorId: string | null = null;
     if (clinicId && tenantId) {
