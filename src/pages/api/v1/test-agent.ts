@@ -37,7 +37,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const OpenAI = await import('openai');
         const openai = new OpenAI.default({ apiKey: process.env.OPENAI_API_KEY });
         const response = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
+            model: 'gpt-4o',
             messages: [{ role: 'user', content: 'Responde con la palabra OK' }],
             max_tokens: 10
         });
