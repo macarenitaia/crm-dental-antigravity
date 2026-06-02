@@ -100,7 +100,7 @@ export async function processUserMessage(userId: string, message: string, profil
                 .from('clients')
                 .insert({
                     whatsapp_id: userId,
-                    name: `Paciente ${userId.slice(-4)}`, // Use a generic but professional placeholder
+                    name: (profileName && profileName.trim()) || `Paciente ${userId.slice(-4)}`, // Usa el nombre de perfil de WhatsApp si lo hay
                     phone: userId, // ✅ Save phone immediately!
                     status: 'lead',
                     cliente_id: effectiveTenantId // ✅ Assign to tenant!
@@ -174,15 +174,17 @@ export async function processUserMessage(userId: string, message: string, profil
             `REGLA DE PREFERENCIA: Si la preferencia NO es "Ninguna", ASUME esa sede por defecto salvo que el usuario diga lo contrario. Evita preguntar.`
             : "\n\n(No hay clínicas configuradas, asume sede única)";
 
-        // Build client context for AI
-        const clientName = client.name && !client.name.startsWith('Paciente ') ? client.name : null;
+        // Build client context for AI (usa el nombre de perfil de WhatsApp como respaldo)
+        const clientName = (client.name && !client.name.startsWith('Paciente '))
+            ? client.name
+            : ((profileName && profileName.trim()) || null);
         const clientEmail = (client as any).email || null;
 
         let clientContext = '\n\n📋 INFORMACIÓN DEL PACIENTE ACTUAL:';
         if (clientName) {
             clientContext += `\n- Nombre: ${clientName}`;
         } else {
-            clientContext += `\n- Nombre: Desconocido (pregunta nombre y apellidos)`;
+            clientContext += `\n- Nombre: Desconocido. Puedes preguntarlo de forma natural, pero NO es obligatorio para reservar: si el usuario ya ha dado día y hora, RESERVA primero (book_appointment) y pide el nombre después.`;
         }
         if (clientEmail) {
             clientContext += `\n- Email: ${clientEmail}`;
