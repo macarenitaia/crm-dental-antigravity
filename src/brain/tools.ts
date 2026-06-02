@@ -44,14 +44,14 @@ export const crmTools: ChatCompletionTool[] = [
                     },
                     full_name: {
                         type: "string",
-                        description: "The client's full name (first and last name)."
+                        description: "OPCIONAL. Nombre y apellidos del paciente SOLO si los ha dicho. No lo inventes."
                     },
                     email: {
                         type: "string",
-                        description: "The client's email address."
+                        description: "OPCIONAL. Email del paciente SOLO si lo ha dicho. NO lo pidas ni lo inventes; no es necesario para reservar."
                     }
                 },
-                required: ["start_time", "reason", "full_name", "email"]
+                required: ["start_time", "reason"]
             }
         }
     },
